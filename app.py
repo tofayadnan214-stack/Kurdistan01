@@ -54,7 +54,7 @@ def block_sensitive_files():
         abort(403)
 
 # ==============================================================================
-# ٢. پەڕەی سەرەکی و پشکنینی دۆخی داخستنی سایت
+# ٢. پەڕەی سەرەکی و خوێندنەوەی ڕووکار
 # ==============================================================================
 LOCKED_HTML_PAGE = """<!DOCTYPE html>
 <html lang="ckb" dir="rtl">
@@ -101,8 +101,14 @@ LOCKED_HTML_PAGE = """<!DOCTYPE html>
 def home():
     if SITE_LOCKED:
         return LOCKED_HTML_PAGE, 503
-    if os.path.exists("index.html"):
-        return send_from_directory(".", "index.html")
+    
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    html_path = os.path.join(base_dir, "index.html")
+    
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+            
     return "سیستەمی چاوی هەڵۆی تاریکی چالاکە. تکایە فایلی index.html باربکە.", 200
 
 # ==============================================================================
