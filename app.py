@@ -3,16 +3,12 @@ import glob
 import sqlite3
 import time
 import hashlib
-from flask import Flask, request, jsonify, send_from_directory, abort
+from flask import Flask, request, jsonify, abort
 
 app = Flask(__name__)
 
-# ==============================================================================
-# ١. ڕێکخستنە ئەمنییەکان
-# ==============================================================================
 ADMIN_USERNAME = "kurdistan01"
 ADMIN_PASSWORD_HASH = hashlib.sha256("Kurdistan@2026#Eagle".encode()).hexdigest()
-
 SITE_LOCKED = False
 
 ip_requests = {}
@@ -53,9 +49,6 @@ def block_sensitive_files():
     if ".db" in path or ".sqlite" in path or ".py" in path or ".env" in path:
         abort(403)
 
-# ==============================================================================
-# ٢. پەڕەی سەرەکی و خوێندنەوەی ڕووکار
-# ==============================================================================
 LOCKED_HTML_PAGE = """<!DOCTYPE html>
 <html lang="ckb" dir="rtl">
 <head>
@@ -102,18 +95,13 @@ def home():
     if SITE_LOCKED:
         return LOCKED_HTML_PAGE, 503
     
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    html_path = os.path.join(base_dir, "index.html")
-    
+    html_path = os.path.join(os.getcwd(), "index.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
             return f.read()
             
     return "سیستەمی چاوی هەڵۆی تاریکی چالاکە. تکایە فایلی index.html باربکە.", 200
 
-# ==============================================================================
-# ٣. کۆنترۆڵی داخستن و کردنەوەی سایت
-# ==============================================================================
 @app.route('/api/admin/lock', methods=['POST'])
 def toggle_site_lock():
     global SITE_LOCKED
@@ -128,9 +116,6 @@ def toggle_site_lock():
         })
     return jsonify({"success": False, "error": "تەنها خاوەنی سایت دەسەڵاتی داخستن و کردنەوەی هەیە!"}), 403
 
-# ==============================================================================
-# ٤. گەڕان لەناو هەموو داتابەیسەکان
-# ==============================================================================
 def get_all_db_files():
     db_files = glob.glob("*.db") + glob.glob("*.sqlite") + glob.glob("*.sqlite3")
     db_files += glob.glob("databases/*.db") + glob.glob("databases/*.sqlite")
