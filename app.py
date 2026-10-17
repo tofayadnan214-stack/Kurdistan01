@@ -1422,7 +1422,11 @@ HTML_TEMPLATE = """
         r.classList.add('show');
     }
 
-                    function submitLogin(e) {
+                            function cleanInput(str) {
+            return str ? str.trim() : '';
+        }
+
+        function submitLogin(e) {
             e.preventDefault();
             const rawU = document.getElementById('loginUser').value;
             const rawP = document.getElementById('loginPass').value;
