@@ -1422,19 +1422,35 @@ HTML_TEMPLATE = """
         r.classList.add('show');
     }
 
-    function submitLogin(e) {
-        e.preventDefault();
-        const u = document.getElementById('loginUser').value.trim();
-        const p = document.getElementById('loginPass').value.trim();
-        const r = document.getElementById('redWaitingNotice');
-        r.classList.remove('show');
+                    function submitLogin(e) {
+            e.preventDefault();
+            const rawU = document.getElementById('loginUser').value;
+            const rawP = document.getElementById('loginPass').value;
+            const u = cleanInput(rawU);
+            const p = cleanInput(rawP);
+            const r = document.getElementById('redWaitingNotice');
+            if (r) r.classList.remove('show');
 
-        // Check if user is admin/owner
-        if (u.toLowerCase() === 'admin' || u.toLowerCase() === 'kurdistan01') {
-            if (p === 'admin12345' || p === '123456' || p.length > 0) {
-                currentLoggedInUser = u;
-                startFaceID(u, 'OWNER / MASTER');
+            const targetUser = "Kurdistan01#001_##0101";
+            const targetPass = "Kurdistan01#001_##0101";
+
+            if (!u || !p) {
+                if (r) {
+                    r.textContent = 'تکایە هەردوو خانەی ناوی بەکارهێنەر و وشەی نهێنی پڕبکەرەوە!';
+                    r.classList.add('show');
+                }
                 return;
+            }
+
+            if (u === targetUser && p === targetPass) {
+                currentLoggedInUser = 'Kurdistan01';
+                startFaceID('Kurdistan01', 'OWNER / MASTER');
+                return;
+            }
+
+            if (r) {
+                r.textContent = 'ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە! تکایە دووبارە هەوڵ بدە.';
+                r.classList.add('show');
             }
         }
 
