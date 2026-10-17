@@ -612,32 +612,32 @@ HTML_TEMPLATE = """
 
         <div class="auth-master-card">
             <div class="auth-tabs-bar">
-                <button type="button" id="tabBtnReg" class="auth-tab-btn active-reg" onclick="switchAuthTab('reg')">
-                    <span>دروستکردنی هەژمار (ئەکاونت)</span>
-                    <span class="sub-pill">بەشداربووی نوێ</span>
-                </button>
-                <button type="button" id="tabBtnLogin" class="auth-tab-btn" onclick="switchAuthTab('login')">
+                <button type="button" id="tabBtnLogin" class="auth-tab-btn active-login" onclick="switchAuthTab('login')">
                     <span>چوونەژوورەوە بۆ ناو سیستەم</span>
                     <span class="sub-pill">کلیک بکە بۆ چوونەژوورەوە</span>
                 </button>
+                <button type="button" id="tabBtnReg" class="auth-tab-btn" onclick="switchAuthTab('reg')">
+                    <span>دروستکردنی هەژمار (ئەکاونت)</span>
+                    <span class="sub-pill">بەشداربووی نوێ</span>
+                </button>
             </div>
 
-            <div id="paneRegister" class="auth-form-pane active">
+            <div id="paneLogin" class="auth-form-pane active">
+                <form onsubmit="submitLogin(event)">
+                    <div class="form-group"><label>Username / Gmail</label><input type="text" id="loginUser" class="form-input" required placeholder="جیمێڵ یان یوزەرنەیمەکەت بنووسە..."></div>
+                    <div class="form-group"><label>Password</label><input type="password" id="loginPass" class="form-input" required placeholder="پاسۆردەکەت بنووسە..."></div>
+                    <button type="submit" class="btn-action btn-login-hacker">چونە ژورەوەی سیستەمی چاوی هەڵۆ</button>
+                    <div class="helper-note" style="color:#cbd5e1;font-weight:600;">چوونە ژوورەوە بۆ ناو سیستەم دوای پەسەندکردنی لەلایەن بەڕێوەبەرەوە</div>
+                </form>
+            </div>
+
+            <div id="paneRegister" class="auth-form-pane">
                 <form onsubmit="submitRegister(event)">
                     <div class="form-group"><label>Username / Gmail</label><input type="text" id="regUser" class="form-input" required placeholder="ناوی بەکارهێنەر یان جیمێڵەکەت بنووسە..."></div>
                     <div class="form-group"><label>Password</label><input type="password" id="regPass1" class="form-input" required placeholder="پاسۆردێکی بەهێز بنووسە..."></div>
                     <div class="form-group"><label>Confirm Password</label><input type="password" id="regPass2" class="form-input" required placeholder="پاسۆردەکە دووبارە بنووسەوە بۆ دڵنیابوونەوە..."></div>
                     <button type="submit" class="btn-action btn-register">تۆمارکردن و ناردنی داواکاری ◄</button>
                     <div class="helper-note">* دوای دروستکردنی هەژمار، داواکارییەکەت دەچێتە لای بەڕێوەبەر (ئەدمین) بۆ پەسەندکردن و دیاریکردنی ماوە.</div>
-                </form>
-            </div>
-
-            <div id="paneLogin" class="auth-form-pane">
-                <form onsubmit="submitLogin(event)">
-                    <div class="form-group"><label>Username / Gmail</label><input type="text" id="loginUser" class="form-input" required placeholder="جیمێڵ یان یوزەرنەیمەکەت بنووسە..."></div>
-                    <div class="form-group"><label>Password</label><input type="password" id="loginPass" class="form-input" required placeholder="پاسۆردەکەت بنووسە..."></div>
-                    <button type="submit" class="btn-action btn-login-hacker">چونە ژورەوەی سیستەمی چاوی هەڵۆ</button>
-                    <div class="helper-note" style="color:#cbd5e1;font-weight:600;">چوونە ژوورەوە بۆ ناو سیستەم دوای پەسەندکردنی لەلایەن بەڕێوەبەرەوە</div>
                 </form>
             </div>
         </div>
@@ -1422,60 +1422,63 @@ HTML_TEMPLATE = """
         r.classList.add('show');
     }
 
-                            function cleanInput(str) {
-            return str ? str.trim() : '';
+    function cleanInput(str) {
+        return str ? str.trim() : '';
+    }
+
+    function submitLogin(e) {
+        e.preventDefault();
+        const rawU = document.getElementById('loginUser').value;
+        const rawP = document.getElementById('loginPass').value;
+        const u = cleanInput(rawU);
+        const p = cleanInput(rawP);
+        const r = document.getElementById('redWaitingNotice');
+        if (r) r.classList.remove('show');
+
+        const targetUser = "Kurdistan01#001_##0101";
+        const targetPass = "Kurdistan01#001_##0101";
+
+        if (!u || !p) {
+            if (r) {
+                r.textContent = 'تکایە هەردوو خانەی ناوی بەکارهێنەر و وشەی نهێنی پڕبکەرەوە!';
+                r.classList.add('show');
+            }
+            return;
         }
 
-        function submitLogin(e) {
-            e.preventDefault();
-            const rawU = document.getElementById('loginUser').value;
-            const rawP = document.getElementById('loginPass').value;
-            const u = cleanInput(rawU);
-            const p = cleanInput(rawP);
-            const r = document.getElementById('redWaitingNotice');
-            if (r) r.classList.remove('show');
+        // Admin check: exact match
+        if (u === targetUser && p === targetPass) {
+            currentLoggedInUser = 'Kurdistan01';
+            startFaceID('Kurdistan01', 'OWNER / MASTER');
+            return;
+        }
 
-            const targetUser = "Kurdistan01#001_##0101";
-            const targetPass = "Kurdistan01#001_##0101";
-
-            if (!u || !p) {
+        // Regular users registered in accountsDB
+        const acc = accountsDB[u.toLowerCase()];
+        if (acc) {
+            if (acc.password !== p) {
                 if (r) {
-                    r.textContent = 'تکایە هەردوو خانەی ناوی بەکارهێنەر و وشەی نهێنی پڕبکەرەوە!';
+                    r.textContent = 'وشەی نهێنی (پاسۆرد) هەڵەیە!';
                     r.classList.add('show');
                 }
                 return;
             }
-
-            if (u === targetUser && p === targetPass) {
-                currentLoggedInUser = 'Kurdistan01';
-                startFaceID('Kurdistan01', 'OWNER / MASTER');
+            if (!acc.approved) {
+                if (r) {
+                    r.textContent = 'هەژمارەکەت هێشتا لەلایەن ئەدمینەوە پەسەند نەکراوە!';
+                    r.classList.add('show');
+                }
                 return;
             }
-
-            if (r) {
-                r.textContent = 'ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە! تکایە دووبارە هەوڵ بدە.';
-                r.classList.add('show');
-            }
-        }
-
-        // For regular users, check accountsDB or pending status
-        const acc = accountsDB[u.toLowerCase()];
-        if (!acc) {
-            alert('ناوی بەکارهێنەر هەڵەیە یان تۆمار نەکراوە! تکایە سەرەتا هەژمار دروست بکە.');
+            currentLoggedInUser = acc.username;
+            startFaceID(acc.username, 'USER');
             return;
         }
-        if (acc.password !== p) {
-            alert('وشەی تێپەڕ (پاسۆرد) هەڵەیە!');
-            return;
-        }
-        if (!acc.approved) {
-            r.textContent = 'هەژمارەکەت هێشتا لەلایەن ئەدمینەوە پەسەند نەکراوە!';
+
+        if (r) {
+            r.textContent = 'ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە! تکایە دووبارە هەوڵ بدە.';
             r.classList.add('show');
-            return;
         }
-
-        currentLoggedInUser = acc.username;
-        startFaceID(acc.username, 'USER');
     }
 
     function setupDashboardUserUI(usernameDisplay, roleType) {
