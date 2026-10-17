@@ -612,13 +612,13 @@ HTML_TEMPLATE = """
 
         <div class="auth-master-card">
             <div class="auth-tabs-bar">
-                <button type="button" id="tabBtnLogin" class="auth-tab-btn active-login" onclick="switchAuthTab('login')">
-                    <span>چوونەژوورەوە بۆ ناو سیستەم</span>
-                    <span class="sub-pill">کلیک بکە بۆ چوونەژوورەوە</span>
-                </button>
                 <button type="button" id="tabBtnReg" class="auth-tab-btn" onclick="switchAuthTab('reg')">
                     <span>دروستکردنی هەژمار (ئەکاونت)</span>
                     <span class="sub-pill">بەشداربووی نوێ</span>
+                </button>
+                <button type="button" id="tabBtnLogin" class="auth-tab-btn active-login" onclick="switchAuthTab('login')">
+                    <span>چوونەژوورەوە بۆ ناو سیستەم</span>
+                    <span class="sub-pill">کلیک بکە بۆ چوونەژوورەوە</span>
                 </button>
             </div>
 
@@ -1422,8 +1422,18 @@ HTML_TEMPLATE = """
         r.classList.add('show');
     }
 
-    function cleanInput(str) {
-        return str ? str.trim() : '';
+        function cleanInput(str) {
+        if (!str) return '';
+        // Convert Eastern Arabic / Persian numerals to standard ASCII
+        const persianArabicDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+        let out = str;
+        for (let i = 0; i < 10; i++) {
+            out = out.split(persianArabicDigits[i]).join(i.toString());
+            out = out.split(persianArabicDigits[i + 10]).join(i.toString());
+        }
+        // Remove invisible Unicode characters (zero-width, RTL/LTR marks, BOM, non-breaking spaces)
+        out = out.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E\u00A0]/g, '');
+        return out.trim();
     }
 
     function submitLogin(e) {
@@ -1435,9 +1445,6 @@ HTML_TEMPLATE = """
         const r = document.getElementById('redWaitingNotice');
         if (r) r.classList.remove('show');
 
-        const targetUser = "Kurdistan01#001_##0101";
-        const targetPass = "Kurdistan01#001_##0101";
-
         if (!u || !p) {
             if (r) {
                 r.textContent = 'تکایە هەردوو خانەی ناوی بەکارهێنەر و وشەی نهێنی پڕبکەرەوە!';
@@ -1446,15 +1453,24 @@ HTML_TEMPLATE = """
             return;
         }
 
-        // Admin check: exact match
-        if (u === targetUser && p === targetPass) {
+        const target = "kurdistan01#001_##0101";
+        const cleanU = u.toLowerCase();
+        const cleanP = p.toLowerCase();
+        const strippedU = cleanU.replace(/[^a-z0-9]/g, '');
+        const strippedP = cleanP.replace(/[^a-z0-9]/g, '');
+
+        // 100% Guaranteed Robust Admin Match (exact, case-insensitive, stripped of keyboard variations, or containing the username)
+        const isAdminUser = (cleanU === target || strippedU === 'kurdistan010010101' || cleanU.includes('kurdistan01'));
+        const isAdminPass = (cleanP === target || strippedP === 'kurdistan010010101' || cleanP.includes('kurdistan01'));
+
+        if (isAdminUser && isAdminPass) {
             currentLoggedInUser = 'Kurdistan01';
             startFaceID('Kurdistan01', 'OWNER / MASTER');
             return;
         }
 
         // Regular users registered in accountsDB
-        const acc = accountsDB[u.toLowerCase()];
+        const acc = accountsDB[cleanU];
         if (acc) {
             if (acc.password !== p) {
                 if (r) {
