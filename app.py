@@ -1,92 +1,3 @@
-import os
-import glob
-import sqlite3
-import requests
-from datetime import datetime, timedelta
-from flask import Flask, request, render_template_string, redirect, url_for, session, flash
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "kurdistan01_super_secret_key_2026")
-
-USERS_DB = "users.db"
-ADMIN_USERNAME = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASS", "admin12345")
-
-# لیستی هەموو داتابەیسەکان لە GitHub Releases
-DATABASES = {
-    "erbil": {"name": "هەولێر (Erbil)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/erbil.db"},
-    "sulaymaniyah": {"name": "سلێمانی (Sulaymaniyah)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/sulaymaniyah.db"},
-    "duhok": {"name": "دهۆک (Duhok)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/duhok.db"},
-    "kirkuk": {"name": "کەرکوک (Kirkuk)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/kirkuk.db"},
-    "baghdad": {"name": "بەغداد (Baghdad)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/baghdad.db"},
-    "nineveh": {"name": "نەینەوا - مووسڵ (Nineveh)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/nineveh.db"},
-    "diyala": {"name": "دیالە (Diyala)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/diyala.db"},
-    "salahaldeen": {"name": "سەلاحەدین (Salahaldeen)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/salahaldeen.db"},
-    "alanbar": {"name": "ئەنبار (Alanbar)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/alanbar.db"},
-    "babylon": {"name": "بابل (Babylon)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/babylon.db"},
-    "balad": {"name": "بەلەد (Balad)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/balad.db"},
-    "basrah": {"name": "بەسرە (Basrah)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/basrah.db"},
-    "dhiqar": {"name": "زیقار (Dhiqar)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/dhiqar.db"},
-    "karbalaa": {"name": "کەربەلا (Karbalaa)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/karbalaa.db"},
-    "mesan": {"name": "میسان (Mesan)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/mesan.db"},
-    "muthana": {"name": "موسەننا (Muthana)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/muthana.db"},
-    "najaf": {"name": "نەجەف (Najaf)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/najaf.db"},
-    "qadisiya": {"name": "قادسیە (Qadisiya)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/qadisiya.db"},
-    "wasit": {"name": "واست (Wasit)", "url": "https://github.com/tofayadnan214-stack/Kurdistan01/releases/download/v1/wasit.db"}
-}
-
-def init_users_db():
-    conn = sqlite3.connect(USERS_DB)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT DEFAULT 'user',
-            status TEXT DEFAULT 'pending',
-            expires_at TEXT
-        )
-    """)
-    c.execute("SELECT * FROM users WHERE username = ?", (ADMIN_USERNAME,))
-    if not c.fetchone():
-        c.execute(
-            "INSERT INTO users (username, password, role, status, expires_at) VALUES (?, ?, 'admin', 'approved', '9999-12-31')",
-            (ADMIN_USERNAME, ADMIN_PASSWORD)
-        )
-    conn.commit()
-    conn.close()
-
-init_users_db()
-
-def get_city_db_connection(city_key):
-    city_info = DATABASES.get(city_key)
-    if not city_info:
-        return None
-    
-    url = city_info["url"]
-    db_path = f"{city_key}.db"
-    
-    if not os.path.exists(db_path):
-        for old_file in glob.glob("*.db"):
-            if old_file != USERS_DB and old_file != db_path:
-                try:
-                    os.remove(old_file)
-                except OSError:
-                    pass
-                    
-        with requests.get(url, stream=True, timeout=300) as r:
-            r.raise_for_status()
-            with open(db_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=65536):
-                    if chunk:
-                        f.write(chunk)
-                        
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ckb" dir="rtl">
 <head>
@@ -142,8 +53,6 @@ HTML_TEMPLATE = """
         @keyframes rotateGlobe { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
         @keyframes sweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulseGreen { 0% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px #10b981; } 50% { opacity: 0.35; transform: scale(0.85); box-shadow: 0 0 2px #10b981; } 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px #10b981; } }
-        @keyframes cyberGlow { 0% { stroke: #00ff88; } 50% { stroke: #00e5ff; } 100% { stroke: #00ff88; } }
-        @keyframes dashMove { to { stroke-dashoffset: -100; } }
 
         .main-wrapper {
             position: relative; z-index: 2; width: 100%; max-width: 1220px;
@@ -175,8 +84,6 @@ HTML_TEMPLATE = """
             border-radius: 9px; padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid rgba(250, 204, 21, 0.65);
         }
-
-        .kurdistan-flag-inner::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.45) 100%); z-index: 1; }
 
         .kurd-sun-svg {
             position: absolute; width: 58px; height: 58px; top: 50%; left: 50%;
@@ -233,7 +140,6 @@ HTML_TEMPLATE = """
         .helper-note { font-size: 10.5px; color: var(--text-gray); margin-top: 9px; text-align: center; }
 
         .status-card { max-width: 480px; margin: 20px auto; background: linear-gradient(180deg, rgba(12, 18, 28, 0.96), rgba(6, 10, 16, 0.98)); border: 1.5px solid var(--border-glow); border-radius: 16px; padding: 22px 16px; text-align: center; box-shadow: 0 0 35px rgba(16, 185, 129, 0.22); }
-        .designer-success-pill { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: rgba(6, 95, 70, 0.35); border: 1px solid #10b981; color: #34d399; padding: 7px 14px; border-radius: 30px; font-size: 11.5px; font-weight: 800; white-space: nowrap; margin: 8px auto 12px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.25); }
         .loader-ring { width: 52px; height: 52px; border: 3px solid rgba(255, 255, 255, 0.1); border-top: 3px solid var(--kurd-gold); border-right: 3px solid var(--kurd-green); border-bottom: 3px solid var(--kurd-red); border-radius: 50%; margin: 10px auto 16px; animation: sweep 1.1s linear infinite; }
 
         /* TOP STATUS BAR */
@@ -312,12 +218,8 @@ HTML_TEMPLATE = """
         .red-exit-icon-btn:hover { background: #dc2626; color: #ffffff; box-shadow: 0 0 12px rgba(239, 68, 68, 0.5); }
 
         .tactical-map-wrapper { touch-action: pan-x pan-y pinch-zoom;
-
             width: 100%; max-width: 1040px; margin: 0 auto 16px;
-            background: radial-gradient(circle at 50% 50%, rgba(6, 78, 59, 0.3) 0%, rgba(2, 4, 8, 0.98) 100%);
-            background-blend-mode: overlay;
-            background-size: cover;
-            background-position: center;
+            background: linear-gradient(rgba(2, 4, 8, 0.85), rgba(2, 4, 8, 0.95));
             border: 1.5px solid #10b981; border-radius: 14px; padding: 12px;
             box-shadow: 0 10px 35px rgba(0,0,0,0.95), 0 0 25px rgba(0, 229, 255, 0.15), inset 0 0 30px rgba(0, 255, 136, 0.08);
             position: relative; overflow: hidden;
@@ -353,7 +255,7 @@ HTML_TEMPLATE = """
             filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.3));
         }
 
-        /* FIXED 3-COLUMN CARDS GRID (PERMANENT 3 COLUMNS) */
+        /* FIXED 3-COLUMN CARDS GRID */
         .cards-grid {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
@@ -471,10 +373,6 @@ HTML_TEMPLATE = """
 
         .db-warning-banner { background: rgba(180, 83, 9, 0.22); border: 1px solid #f59e0b; color: #fef3c7; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: bold; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
         
-        .db-fields-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%; }
-        @media (max-width: 900px) { .db-fields-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 560px) { .db-fields-grid { grid-template-columns: 1fr; } }
-
         .db-field-card { background: rgba(20, 24, 32, 0.95); border: 1px solid #374151; border-radius: 9px; padding: 14px 12px; transition: 0.2s; display: flex; flex-direction: column; justify-content: space-between; }
         .db-field-card:focus-within { border-color: #10b981; background: rgba(6, 78, 59, 0.18); box-shadow: 0 0 12px rgba(16, 185, 129, 0.25); }
         .db-field-label { display: block; font-size: 11.5px; font-weight: bold; color: #e5e7eb; margin-bottom: 8px; text-align: right; }
@@ -515,38 +413,48 @@ HTML_TEMPLATE = """
         .record-action-btn:hover { border-color: #10b981; color: #ffffff; background: rgba(16, 185, 129, 0.15); }
         .record-action-btn.btn-highlight { border-color: #10b981; background: rgba(6, 78, 59, 0.45); color: #34d399; }
 
-        /* MODAL OVERLAYS */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 9999; align-items: center; justify-content: center; padding: 15px; overflow-y: auto; }
-        .modal-overlay.open { display: flex; }
-        .tree-modal-box { width: 100%; max-width: 960px; touch-action: manipulation;  background: #090c12; border: 1px solid #4b5563; border-radius: 12px; padding: 16px 20px 24px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.95); position: relative; }
-        .modal-common-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #263142; padding-bottom: 10px; margin-bottom: 16px; }
-        .modal-common-title { font-size: 14px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 6px; }
-        .modal-close-btn { background: #7f1d1d; border: 1px solid #ef4444; color: #ffffff; width: 28px; height: 28px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .tree-inner-frame { border: 1px solid #374151; border-radius: 10px; padding: 20px 14px; background: rgba(11, 15, 22, 0.95); text-align: center; }
-        .tree-role-tag { display: inline-block; background: #ffffff; color: #000000; font-weight: 800; font-size: 11px; padding: 4px 16px; border-radius: 20px; margin-bottom: 8px; }
         
-        .parent-node-card { position: relative; max-width: 380px; margin: 0 auto; background: #101622; border: 1.5px solid #d1d5db; border-radius: 12px; padding: 16px 14px; text-align: right; box-shadow: 0 0 20px rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .node-avatar-circle { width: 60px; height: 60px; min-width: 60px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .node-avatar-inner-sq { width: 24px; height: 24px; border: 3px solid #000000; }
-        .parent-info-col { flex: 1; text-align: right; }
-        .node-name-head { font-size: 15px; font-weight: 800; color: #ffffff; margin-bottom: 6px; }
-        .node-detail-line { font-size: 10.5px; color: #cbd5e1; margin-bottom: 3px; }
-        .node-bottom-badges { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; flex-wrap: wrap; }
-        .mini-badge-box { background: #090d14; border: 1px solid #4b5563; border-radius: 5px; padding: 2px 7px; font-size: 9.5px; color: #e5e7eb; }
-        .tree-connector-line { width: 2px; height: 35px; background: #38bdf8; margin: 0 auto; }
-        .tree-middle-badge { display: inline-block; background: #000000; border: 1px solid #4b5563; color: #ffffff; font-size: 10px; font-weight: bold; padding: 2px 12px; border-radius: 12px; margin-bottom: 8px; }
-        .children-cards-row { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; margin-top: 10px !important; }
-        @media (min-width: 768px) { .children-cards-row { grid-template-columns: repeat(3, 1fr) !important; } }
-        .child-node-card { background: #101622; border: 1.5px solid #d1d5db; border-radius: 12px; padding: 12px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; box-shadow: 0 0 15px rgba(255, 255, 255, 0.05); }
-        .node-diamond { width: 22px; height: 22px; background: #000000; transform: rotate(45deg); }
+        /* FIXED MODAL OVERLAYS AND PADDING TO PREVENT TEXT CLIPPING */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.92); z-index: 9999;
+            align-items: center; justify-content: center;
+            padding: 40px 15px 20px 15px; overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .modal-overlay.open { display: flex; }
+        
+        .tree-modal-box {
+            width: 100%; max-width: 980px; max-height: 90vh;
+            overflow-y: auto; touch-action: manipulation;
+            background: #090c12; border: 1.5px solid #10b981;
+            border-radius: 14px; padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.98);
+            position: relative; margin-top: auto; margin-bottom: auto;
+        }
 
-        .map-modal-box { width: 100%; max-width: 490px; background: #0c1017; border: 1.5px solid #4b5563; border-radius: 12px; padding: 16px 16px 20px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.95); }
-        .meter-info-card { background: #141a24; border: 1px solid #374151; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 11.5px; line-height: 1.8; color: #e5e7eb; text-align: right; }
-        .meter-map-frame { width: 100%; height: 380px; border: 1px solid #374151; border-radius: 8px; overflow: hidden; background: #1f2937; }
-        .meter-map-frame iframe { width: 100%; height: 100%; border: 0; }
+        .map-modal-box {
+            width: 100%; max-width: 620px; max-height: 92vh;
+            overflow-y: auto; background: #0c1017;
+            border: 2px solid #10b981; border-radius: 16px;
+            padding: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.98);
+            position: relative; margin-top: auto; margin-bottom: auto;
+        }
 
-        .bio-modal-box { width: 100%; max-width: 420px; background: #0c1017; border: 1.5px solid #10b981; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 15px 45px rgba(0,0,0,0.95); }
-        .bio-img-preview { width: 180px; height: 180px; border: 2px solid #10b981; border-radius: 10px; margin: 15px auto; object-fit: cover; background: #1f2937; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #10b981; }
+        .meter-info-card {
+            background: linear-gradient(135deg, rgba(6, 78, 59, 0.3), rgba(15, 23, 42, 0.95));
+            border: 1px solid #10b981; border-radius: 10px; padding: 14px 16px;
+            margin-bottom: 14px; font-size: 12px; line-height: 1.9; color: #e5e7eb; text-align: right;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+        }
+
+        .meter-map-frame {
+            width: 100%; height: 440px; border: 1.5px solid #00e5ff;
+            border-radius: 12px; overflow: hidden; background: #111827;
+            position: relative; box-shadow: 0 0 25px rgba(0, 229, 255, 0.25);
+        }
+        .meter-map-frame iframe { width: 100%; height: 100%; border: 0; filter: contrast(1.1) saturate(1.2); }
+
 
         /* TOAST NOTIFICATION */
         #toastNotice {
@@ -564,7 +472,16 @@ HTML_TEMPLATE = """
         .scanner-frame { position: absolute; inset: 0; background: radial-gradient(transparent 40%, rgba(0,0,0,0.9) 100%); pointer-events: none; }
         .scanner-laser { position: absolute; width: 100%; height: 3px; background: #00ff88; top: 0; box-shadow: 0 0 15px #00ff88, 0 0 25px #00e5ff; animation: scanLaser 2s infinite alternate ease-in-out; pointer-events: none; }
         @keyframes scanLaser { 0% { top: 0; opacity: 0.2; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 100%; opacity: 0.2; } }
-    </style>
+    
+
+        .modal-common-header {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #263142;
+            padding-bottom: 10px; margin-bottom: 16px;
+        }
+        .modal-common-title { font-size: 14px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 6px; }
+
+</style>
 </head>
 <body>
 
@@ -612,32 +529,32 @@ HTML_TEMPLATE = """
 
         <div class="auth-master-card">
             <div class="auth-tabs-bar">
-                <button type="button" id="tabBtnReg" class="auth-tab-btn" onclick="switchAuthTab('reg')">
+                <button type="button" id="tabBtnReg" class="auth-tab-btn active-reg" onclick="switchAuthTab('reg')">
                     <span>دروستکردنی هەژمار (ئەکاونت)</span>
                     <span class="sub-pill">بەشداربووی نوێ</span>
                 </button>
-                <button type="button" id="tabBtnLogin" class="auth-tab-btn active-login" onclick="switchAuthTab('login')">
+                <button type="button" id="tabBtnLogin" class="auth-tab-btn" onclick="switchAuthTab('login')">
                     <span>چوونەژوورەوە بۆ ناو سیستەم</span>
                     <span class="sub-pill">کلیک بکە بۆ چوونەژوورەوە</span>
                 </button>
             </div>
 
-            <div id="paneLogin" class="auth-form-pane active">
-                <form onsubmit="submitLogin(event)">
-                    <div class="form-group"><label>Username / Gmail</label><input type="text" id="loginUser" class="form-input" required placeholder="جیمێڵ یان یوزەرنەیمەکەت بنووسە..."></div>
-                    <div class="form-group"><label>Password</label><input type="password" id="loginPass" class="form-input" required placeholder="پاسۆردەکەت بنووسە..."></div>
-                    <button type="submit" class="btn-action btn-login-hacker">چونە ژورەوەی سیستەمی چاوی هەڵۆ</button>
-                    <div class="helper-note" style="color:#cbd5e1;font-weight:600;">چوونە ژوورەوە بۆ ناو سیستەم دوای پەسەندکردنی لەلایەن بەڕێوەبەرەوە</div>
-                </form>
-            </div>
-
-            <div id="paneRegister" class="auth-form-pane">
+            <div id="paneRegister" class="auth-form-pane active">
                 <form onsubmit="submitRegister(event)">
                     <div class="form-group"><label>Username / Gmail</label><input type="text" id="regUser" class="form-input" required placeholder="ناوی بەکارهێنەر یان جیمێڵەکەت بنووسە..."></div>
                     <div class="form-group"><label>Password</label><input type="password" id="regPass1" class="form-input" required placeholder="پاسۆردێکی بەهێز بنووسە..."></div>
                     <div class="form-group"><label>Confirm Password</label><input type="password" id="regPass2" class="form-input" required placeholder="پاسۆردەکە دووبارە بنووسەوە بۆ دڵنیابوونەوە..."></div>
                     <button type="submit" class="btn-action btn-register">تۆمارکردن و ناردنی داواکاری ◄</button>
                     <div class="helper-note">* دوای دروستکردنی هەژمار، داواکارییەکەت دەچێتە لای بەڕێوەبەر (ئەدمین) بۆ پەسەندکردن و دیاریکردنی ماوە.</div>
+                </form>
+            </div>
+
+            <div id="paneLogin" class="auth-form-pane">
+                <form onsubmit="submitLogin(event)">
+                    <div class="form-group"><label>Username / Gmail</label><input type="text" id="loginUser" class="form-input" required placeholder="جیمێڵ یان یوزەرنەیمەکەت بنووسە..."></div>
+                    <div class="form-group"><label>Password</label><input type="password" id="loginPass" class="form-input" required placeholder="پاسۆردەکەت بنووسە..."></div>
+                    <button type="submit" class="btn-action btn-login-hacker">چونە ژورەوەی سیستەمی چاوی هەڵۆ</button>
+                    <div class="helper-note" style="color:#cbd5e1;font-weight:600;">چوونە ژوورەوە بۆ ناو سیستەم دوای پەسەندکردنی لەلایەن بەڕێوەبەرەوە</div>
                 </form>
             </div>
         </div>
@@ -675,13 +592,13 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
-    <!-- 4. MAIN DASHBOARD VIEW (ONLY VISIBLE AFTER 5-SEC SCAN AND VERIFICATION) -->
+    <!-- 4. MAIN DASHBOARD VIEW -->
     <div id="dashboardView" class="view-section">
-        <!-- TOP STATUS BAR: REDUCED FONT SIZES, OWNER/MASTER SMALLER -->
+        <!-- TOP STATUS BAR -->
         <div class="cyber-top-bar">
             <div><span class="status-dot"></span><strong>سیستەم چالاکە</strong> | پەیوەندی: <span style="color:#34d399;">پارێزراو</span> | دەسەڵات: <span class="role-badge-small" id="topRoleBadge">OWNER / MASTER</span></div>
             <div class="yellow-bji-line">( بژی کورد، بژی کوردستان ☀️ )</div>
-            <div id="liveClock" style="color:#9ca3af;font-family:monospace;">16/10/2026 23:15:00</div>
+            <div id="liveClock" style="color:#9ca3af;font-family:monospace;">17/10/2026 17:15:00</div>
         </div>
 
         <!-- REFINED COMPACT BAR -->
@@ -690,9 +607,8 @@ HTML_TEMPLATE = """
             <span class="session-timer-text" id="sessionRemainingBadge">⏱ ماوە: هەمیشەیی</span>
         </div>
 
-        <!-- TACTICAL BAR (IMAGE 2 & 3 COMBINED) -->
+        <!-- TACTICAL BAR -->
         <div class="tactical-portal-bar">
-            <!-- Left Side: Star Icon + Kurdistan01 + چوونە ژورەوەی بەڕێوبەر -->
             <div class="admin-star-portal-btn" onclick="openAdminPortalView()" title="چوونە ژوورەوەی بەڕێوەبەر">
                 <div class="star-box-icon">★</div>
                 <div class="portal-title-col">
@@ -701,12 +617,11 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- Right Side: Blinking Green Online Dot + Username + USER tag + Red Exit Button -->
             <div class="user-status-right-group">
                 <div class="user-online-pill-box">
                     <span class="blinking-green-dot"></span>
                     <span class="logged-username-text" id="tacticalUsernameDisplay">Kurdistan01</span>
-                    <span class="user-role-tag-pill" id="tacticalRolePill">USER</span>
+                    <span class="user-role-tag-pill" id="tacticalRolePill">OWNER</span>
                 </div>
                 <button type="button" class="red-exit-icon-btn" onclick="logoutToAuth()" title="دەرچوون لە سیستەم (Logout)">
                     ➔
@@ -714,7 +629,7 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <!-- PURE DIGITAL CYBER SPIDERWEB NETWORK TOPOLOGY MAP (DARK BACKGROUND, NEON BLUE & GREEN) -->
+        <!-- CYBER SPIDERWEB NETWORK TOPOLOGY MAP -->
         <div id="spiderMapSection" class="tactical-map-wrapper">
             <div class="map-top-hud">
                 <div>
@@ -738,7 +653,7 @@ HTML_TEMPLATE = """
                         </filter>
                     </defs>
 
-                    <!-- Background Radar Target Rings & Cyber Glow -->
+                    <!-- Background Radar Target Rings -->
                     <circle cx="325" cy="240" r="210" fill="url(#cyberMeshGlow)"/>
                     <circle cx="325" cy="240" r="180" fill="none" stroke="#00e5ff" stroke-width="0.8" stroke-dasharray="6,6" opacity="0.3"/>
                     <circle cx="325" cy="240" r="120" fill="none" stroke="#00ff88" stroke-width="0.8" stroke-dasharray="4,8" opacity="0.4"/>
@@ -758,36 +673,33 @@ HTML_TEMPLATE = """
                     <polygon points="210,35 365,28 455,85 525,175 545,265 495,355 525,465 470,495 315,465 215,390 120,305 145,205 190,135" 
                              fill="rgba(0, 229, 255, 0.03)" stroke="#00e5ff" stroke-width="2.2" filter="url(#neonBlur)"/>
 
-                    <!-- Glowing Neon Blue & Green Connection Lines -->
+                    <!-- Glowing Connection Lines -->
                     <g stroke="#00e5ff" stroke-width="1.6" opacity="0.85" filter="url(#neonBlur)">
-                        <!-- Northern & Major Kurdish Network -->
-                        <line x1="255" y1="68" x2="290" y2="105"/> <!-- Zakho - Duhok -->
-                        <line x1="255" y1="68" x2="240" y2="155"/> <!-- Zakho - Mosul -->
-                        <line x1="290" y1="105" x2="345" y2="112"/> <!-- Duhok - Akre -->
-                        <line x1="290" y1="105" x2="345" y2="165"/> <!-- Duhok - Erbil -->
-                        <line x1="290" y1="105" x2="240" y2="155"/> <!-- Duhok - Mosul -->
-                        <line x1="345" y1="112" x2="405" y2="120"/> <!-- Akre - Soran -->
-                        <line x1="345" y1="112" x2="345" y2="165"/> <!-- Akre - Erbil -->
-                        <line x1="405" y1="120" x2="345" y2="165"/> <!-- Soran - Erbil -->
-                        <line x1="405" y1="120" x2="435" y2="168"/> <!-- Soran - Ranya -->
-                        <line x1="345" y1="165" x2="395" y2="185"/> <!-- Erbil - Koya -->
-                        <line x1="345" y1="165" x2="355" y2="235"/> <!-- Erbil - Kirkuk -->
-                        <line x1="345" y1="165" x2="240" y2="155"/> <!-- Erbil - Mosul -->
-                        <line x1="395" y1="185" x2="435" y2="168"/> <!-- Koya - Ranya -->
-                        <line x1="395" y1="185" x2="455" y2="215"/> <!-- Koya - Sulaymaniyah -->
-                        <line x1="395" y1="185" x2="355" y2="235"/> <!-- Koya - Kirkuk -->
-                        <line x1="435" y1="168" x2="455" y2="215"/> <!-- Ranya - Sulaymaniyah -->
-                        <line x1="455" y1="215" x2="410" y2="248"/> <!-- Sulaymaniyah - Chamchamal -->
-                        <line x1="455" y1="215" x2="495" y2="255"/> <!-- Sulaymaniyah - Halabja -->
-                        <line x1="455" y1="215" x2="435" y2="290"/> <!-- Sulaymaniyah - Kalar -->
-                        <line x1="410" y1="248" x2="355" y2="235"/> <!-- Chamchamal - Kirkuk -->
-                        <line x1="410" y1="248" x2="435" y2="290"/> <!-- Chamchamal - Kalar -->
-                        <line x1="495" y1="255" x2="435" y2="290"/> <!-- Halabja - Kalar -->
-                        <line x1="355" y1="235" x2="435" y2="290"/> <!-- Kirkuk - Kalar -->
-                        <line x1="435" y1="290" x2="420" y2="335"/> <!-- Kalar - Khanaqin -->
-                        <line x1="240" y1="155" x2="355" y2="235"/> <!-- Mosul - Kirkuk -->
-
-                        <!-- Regional Grid Lines -->
+                        <line x1="255" y1="68" x2="290" y2="105"/>
+                        <line x1="255" y1="68" x2="240" y2="155"/>
+                        <line x1="290" y1="105" x2="345" y2="112"/>
+                        <line x1="290" y1="105" x2="345" y2="165"/>
+                        <line x1="290" y1="105" x2="240" y2="155"/>
+                        <line x1="345" y1="112" x2="405" y2="120"/>
+                        <line x1="345" y1="112" x2="345" y2="165"/>
+                        <line x1="405" y1="120" x2="345" y2="165"/>
+                        <line x1="405" y1="120" x2="435" y2="168"/>
+                        <line x1="345" y1="165" x2="395" y2="185"/>
+                        <line x1="345" y1="165" x2="355" y2="235"/>
+                        <line x1="345" y1="165" x2="240" y2="155"/>
+                        <line x1="395" y1="185" x2="435" y2="168"/>
+                        <line x1="395" y1="185" x2="455" y2="215"/>
+                        <line x1="395" y1="185" x2="355" y2="235"/>
+                        <line x1="435" y1="168" x2="455" y2="215"/>
+                        <line x1="455" y1="215" x2="410" y2="248"/>
+                        <line x1="455" y1="215" x2="495" y2="255"/>
+                        <line x1="455" y1="215" x2="435" y2="290"/>
+                        <line x1="410" y1="248" x2="355" y2="235"/>
+                        <line x1="410" y1="248" x2="435" y2="290"/>
+                        <line x1="495" y1="255" x2="435" y2="290"/>
+                        <line x1="355" y1="235" x2="435" y2="290"/>
+                        <line x1="435" y1="290" x2="420" y2="335"/>
+                        <line x1="240" y1="155" x2="355" y2="235"/>
                         <line x1="240" y1="155" x2="295" y2="295"/>
                         <line x1="355" y1="235" x2="295" y2="295"/>
                         <line x1="355" y1="235" x2="380" y2="340"/>
@@ -812,88 +724,74 @@ HTML_TEMPLATE = """
                         <line x1="345" y1="165" x2="420" y2="335"/>
                     </g>
 
-                    <!-- City Nodes (Neon Green and Blue Glowing Points - Spaced Out) -->
-                    <!-- Zakho -->
+                    <!-- City Nodes -->
                     <g style="cursor:pointer" onclick="selectSector('ZAKHO (زاخۆ)')">
                         <circle cx="255" cy="68" r="8" fill="#00e5ff" stroke="#000" stroke-width="2" filter="url(#neonBlur)"/>
                         <circle cx="255" cy="68" r="3" fill="#ffffff"/>
                         <text x="235" y="48" fill="#00e5ff" font-size="10.5" font-weight="900" font-family="monospace">زاخۆ ZAKHO</text>
                     </g>
-                    <!-- Duhok -->
                     <g style="cursor:pointer" onclick="selectSector('DUHOK (دهۆک)')">
                         <circle cx="290" cy="105" r="9" fill="#00ff88" stroke="#000" stroke-width="2" filter="url(#neonBlur)"/>
                         <circle cx="290" cy="105" r="4" fill="#ffffff"/>
                         <text x="175" y="100" fill="#00ff88" font-size="11" font-weight="900">دهۆک DUHOK</text>
                     </g>
-                    <!-- Akre -->
                     <g style="cursor:pointer" onclick="selectSector('AKRE (ئاکرێ)')">
                         <circle cx="345" cy="112" r="7" fill="#00e5ff" stroke="#000" stroke-width="1.8"/>
                         <circle cx="345" cy="112" r="2.5" fill="#ffffff"/>
                         <text x="325" y="94" fill="#a7f3d0" font-size="10" font-weight="bold">ئاکرێ</text>
                     </g>
-                    <!-- Soran -->
                     <g style="cursor:pointer" onclick="selectSector('SORAN (سۆران)')">
                         <circle cx="405" cy="120" r="8" fill="#00ff88" stroke="#000" stroke-width="1.8" filter="url(#neonBlur)"/>
                         <circle cx="405" cy="120" r="3" fill="#ffffff"/>
                         <text x="420" y="112" fill="#00ff88" font-size="10.5" font-weight="900">سۆران</text>
                     </g>
-                    <!-- Erbil (Central Neon Cyber Node) -->
                     <g style="cursor:pointer" onclick="selectSector('ERBIL (هەولێر)')">
                         <circle cx="345" cy="165" r="13" fill="none" stroke="#00e5ff" stroke-width="2" stroke-dasharray="3,3" opacity="0.8"/>
                         <circle cx="345" cy="165" r="10" fill="#00ff88" stroke="#ffffff" stroke-width="2.5" filter="url(#neonBlur)"/>
                         <circle cx="345" cy="165" r="4.5" fill="#ffffff"/>
                         <text x="260" y="153" fill="#00ff88" font-size="12" font-weight="900">هەولێر ERBIL</text>
                     </g>
-                    <!-- Koya -->
                     <g style="cursor:pointer" onclick="selectSector('KOYA (کۆیە)')">
                         <circle cx="395" cy="185" r="7" fill="#00e5ff" stroke="#000" stroke-width="1.8"/>
                         <circle cx="395" cy="185" r="2.5" fill="#ffffff"/>
                         <text x="375" y="210" fill="#a7f3d0" font-size="10" font-weight="bold">کۆیە</text>
                     </g>
-                    <!-- Ranya -->
                     <g style="cursor:pointer" onclick="selectSector('RANYA (ڕانیە)')">
                         <circle cx="435" cy="168" r="8" fill="#00ff88" stroke="#000" stroke-width="1.8"/>
                         <circle cx="435" cy="168" r="3" fill="#ffffff"/>
                         <text x="450" y="162" fill="#00ff88" font-size="10.5" font-weight="900">ڕانیە</text>
                     </g>
-                    <!-- Sulaymaniyah -->
                     <g style="cursor:pointer" onclick="selectSector('SULAYMANIYAH (سلێمانی)')">
                         <circle cx="455" cy="215" r="10" fill="#00e5ff" stroke="#000" stroke-width="2" filter="url(#neonBlur)"/>
                         <circle cx="455" cy="215" r="4" fill="#ffffff"/>
                         <text x="475" y="222" fill="#00e5ff" font-size="11" font-weight="900">سلێمانی</text>
                     </g>
-                    <!-- Chamchamal -->
                     <g style="cursor:pointer" onclick="selectSector('CHAMCHAMAL (چەمچەماڵ)')">
                         <circle cx="410" cy="248" r="7" fill="#00ff88" stroke="#000" stroke-width="1.8"/>
                         <circle cx="410" cy="248" r="2.5" fill="#ffffff"/>
                         <text x="365" y="275" fill="#a7f3d0" font-size="9.5" font-weight="bold">چەمچەماڵ</text>
                     </g>
-                    <!-- Kirkuk -->
                     <g style="cursor:pointer" onclick="selectSector('KIRKUK (کەرکوک)')">
                         <circle cx="355" cy="235" r="10" fill="#00e5ff" stroke="#00ff88" stroke-width="2.2" filter="url(#neonBlur)"/>
                         <circle cx="355" cy="235" r="4" fill="#ffffff"/>
                         <text x="270" y="248" fill="#00e5ff" font-size="11" font-weight="900">کەرکوک</text>
                     </g>
-                    <!-- Halabja -->
                     <g style="cursor:pointer" onclick="selectSector('HALABJA (هەڵەبجە)')">
                         <circle cx="495" cy="255" r="8" fill="#00ff88" stroke="#000" stroke-width="1.8"/>
                         <circle cx="495" cy="255" r="3" fill="#ffffff"/>
                         <text x="510" y="265" fill="#00ff88" font-size="10.5" font-weight="900">هەڵەبجە</text>
                     </g>
-                    <!-- Kalar -->
                     <g style="cursor:pointer" onclick="selectSector('KALAR (کەلار - گەرمیان)')">
                         <circle cx="435" cy="290" r="8" fill="#00e5ff" stroke="#000" stroke-width="1.8"/>
                         <circle cx="435" cy="290" r="3" fill="#ffffff"/>
                         <text x="450" y="305" fill="#00e5ff" font-size="10.5" font-weight="900">کەلار</text>
                     </g>
-                    <!-- Khanaqin -->
                     <g style="cursor:pointer" onclick="selectSector('KHANAQIN (خانەقین)')">
                         <circle cx="420" cy="335" r="7" fill="#00ff88" stroke="#000" stroke-width="1.8"/>
                         <circle cx="420" cy="335" r="2.5" fill="#ffffff"/>
                         <text x="435" y="352" fill="#a7f3d0" font-size="10" font-weight="bold">خانەقین</text>
                     </g>
-
-                    <!-- Southern Iraq Regional Nodes -->
+                    <!-- Regional Iraqi Nodes -->
                     <g style="cursor:pointer" onclick="selectSector('MOSUL')">
                         <circle cx="240" cy="155" r="7" fill="#3b82f6" stroke="#000" stroke-width="1.8"/>
                         <text x="180" y="159" fill="#93c5fd" font-size="10.5" font-weight="bold">MOSUL</text>
@@ -934,7 +832,7 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <!-- 14 CARDS GRID (PERMANENT 3-COLUMNS AS IN IMAGE 11) -->
+        <!-- 14 CARDS GRID -->
         <div id="cardsGridSubView">
             <div class="cards-grid" id="cardsContainer"></div>
         </div>
@@ -1010,32 +908,30 @@ HTML_TEMPLATE = """
 </div>
 
 <!-- 1. FAMILY TREE MODAL -->
-<!-- 1. FAMILY TREE MODAL -->
-<!-- 1. FAMILY TREE MODAL -->
-<!-- 1. FAMILY TREE MODAL -->
 <div id="familyTreeModal" class="modal-overlay">
     <div class="tree-modal-box" style="max-width: 960px; padding: 12px 14px 18px;">
         <div class="modal-common-header" style="margin-bottom: 10px; padding-bottom: 6px;">
-            <div class="modal-common-title" style="font-size: 13px;">FAMILY TREE VISUALIZATION</div>
+            <div class="modal-common-title" style="font-size: 13px;">فایلی زانیاری خێزان و بنەماڵە</div>
             <div style="display:flex; gap:6px; align-items:center;">
                 <button type="button" class="db-top-btn db-back-main-btn" onclick="closeFamilyTreeModal()" style="padding: 4px 10px; font-size: 11px;">گەڕانەوە ➔</button>
                 <button type="button" class="modal-close-btn" onclick="closeFamilyTreeModal()" style="width: 24px; height: 24px; font-size: 12px;">✕</button>
             </div>
         </div>
         <div class="tree-inner-frame" style="padding: 10px 8px;">
-            <div class="tree-role-tag" style="font-size: 10px; padding: 2px 10px; margin-bottom: 6px;">سەرۆکی خێزان و هاوسەر</div>
+            <div class="tree-role-tag" style="font-size: 10px; padding: 2px 10px; margin-bottom: 6px;">فایلی زانیاری تەواوی خێزان و بنەماڵە</div>
 
-            <!-- Husband and Wife side by side container -->
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-width: 720px; margin: 0 auto;">
                 <div class="parent-node-card" style="max-width: 100%; margin: 0; padding: 10px; gap: 8px;">
                     <div class="node-avatar-circle" style="width: 40px; height: 40px; min-width: 40px;"><div class="node-avatar-inner-sq" style="width: 16px; height: 16px;"></div></div>
                     <div class="parent-info-col" style="text-align: right;">
-                        <div class="node-name-head" style="font-size: 12.5px; margin-bottom: 2px;">محسن نجم (باوک)</div>
+                        <div class="node-name-head" id="modalFatherName" style="font-size: 12.5px; margin-bottom: 2px;">محسن نجم (باوک - سەرۆکی خێزان)</div>
                         <div class="node-detail-line" style="font-size: 9.5px; margin-bottom: 1px;">• باوک: نجم صادق | دایک: نجبة</div>
-                        <div class="node-detail-line" style="font-size: 9.5px; margin-bottom: 1px;">• پیشە: فەرمانبەر | تەمەن: 61</div>
+                        <div class="node-detail-line" style="font-size: 9.5px; margin-bottom: 1px;">• پیشە: فەرمانبەر | تەمەن: 61 | گرووپی خوێن: O+</div>
                         <div class="node-detail-line" style="font-size: 9.5px; color: #34d399; font-weight: bold;">• مووچەی مانگانە: 1,250,000 دینار</div>
+                        <div class="node-detail-line" style="font-size: 9.5px; color: #38bdf8;">• ناونیشان: هەولێر - بەختیاری - کۆڵانی 14</div>
                         <div class="node-bottom-badges" style="margin-top: 4px; gap: 4px;">
-                            <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">لەدایکبوون: 1965</span>
+                            <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">لەدایک: 1965</span>
+                            <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">ناسنامە: 1965482910</span>
                             <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">خێزاندار</span>
                         </div>
                     </div>
@@ -1044,12 +940,14 @@ HTML_TEMPLATE = """
                 <div class="parent-node-card" style="max-width: 100%; margin: 0; padding: 10px; gap: 8px;">
                     <div class="node-avatar-circle" style="width: 40px; height: 40px; min-width: 40px;"><div class="node-diamond" style="width: 14px; height: 14px;"></div></div>
                     <div class="parent-info-col" style="text-align: right;">
-                        <div class="node-name-head" style="font-size: 12.5px; margin-bottom: 2px;">زينة حسين (دایک)</div>
+                        <div class="node-name-head" id="modalMotherName" style="font-size: 12.5px; margin-bottom: 2px;">زينة حسين (دایک - هاوسەر)</div>
                         <div class="node-detail-line" style="font-size: 9.5px; margin-bottom: 1px;">• باوک: حسين طاهر | دایک: خديجة</div>
-                        <div class="node-detail-line" style="font-size: 9.5px; margin-bottom: 1px;">• پیشە: ماڵدار | تەمەن: 58</div>
+                        <div class="node-detail-line" style="font-size: 9.5px; margin-bottom: 1px;">• پیشە: ماڵدار | تەمەن: 58 | گرووپی خوێن: A+</div>
                         <div class="node-detail-line" style="font-size: 9.5px; color: #9ca3af;">• مووچەی مانگانە: نەبوو (خانەنشینی خێزان)</div>
+                        <div class="node-detail-line" style="font-size: 9.5px; color: #38bdf8;">• ناونیشان: هەولێر - بەختیاری</div>
                         <div class="node-bottom-badges" style="margin-top: 4px; gap: 4px;">
-                            <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">کار: 1</span>
+                            <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">لەدایک: 1968</span>
+                            <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">ناسنامە: 1968591024</span>
                             <span class="mini-badge-box" style="font-size: 8.5px; padding: 1px 5px;">خێزاندار</span>
                         </div>
                     </div>
@@ -1057,20 +955,21 @@ HTML_TEMPLATE = """
             </div>
 
             <div class="tree-connector-line" style="height: 18px; margin-top: 6px;"></div>
-            <div class="tree-middle-badge" style="font-size: 9.5px; padding: 1px 10px;">منداڵان (٦ منداڵ - زانیاری تەواو و مووچە)</div>
+            <div class="tree-middle-badge" style="font-size: 9.5px; padding: 1px 10px;">منداڵان (٦ منداڵ - زانیاری تەواو، پیشە، مووچە و باری ژیان)</div>
             <div class="tree-connector-line" style="height: 12px;"></div>
 
             <div class="children-cards-row" style="display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; margin-top: 6px !important;">
                 <div class="child-node-card" style="padding: 8px; gap: 6px; min-height: 130px; align-items: flex-start;">
                     <div class="node-avatar-circle" style="width: 34px; height: 34px; min-width: 34px;"><div class="node-diamond" style="width: 12px; height: 12px;"></div></div>
                     <div class="parent-info-col" style="text-align: right; flex: 1;">
-                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">لاوند محسن</div>
-                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: ئەندازیار</div>
+                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">لاوند محسن (کوڕ)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: ئەندازیاری شارستانی</div>
                         <div class="node-detail-line" style="font-size: 8.5px;">• دۆخ: خێزاندار | تەمەن: 34</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color: #34d399; font-weight: bold;">• مووچە: 950,000 د.ع</div>
+                        <div class="node-detail-line" style="font-size: 8.5px; color: #38bdf8;">• تەلەفۆن: 0750 412 8931</div>
                         <div class="node-bottom-badges" style="margin-top: 3px; gap: 3px;">
                             <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px;">لەدایک: 1992</span>
-                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">ژیان</span>
+                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">لە ژیاندا</span>
                         </div>
                     </div>
                 </div>
@@ -1078,13 +977,14 @@ HTML_TEMPLATE = """
                 <div class="child-node-card" style="padding: 8px; gap: 6px; min-height: 130px; align-items: flex-start;">
                     <div class="node-avatar-circle" style="width: 34px; height: 34px; min-width: 34px;"><div class="node-diamond" style="width: 12px; height: 12px;"></div></div>
                     <div class="parent-info-col" style="text-align: right; flex: 1;">
-                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">هوشمند محسن</div>
-                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: پزیشک</div>
+                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">هوشمند محسن (کوڕ)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: پزیشکی گشتی</div>
                         <div class="node-detail-line" style="font-size: 8.5px;">• دۆخ: خێزاندار | تەمەن: 32</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color: #34d399; font-weight: bold;">• مووچە: 1,800,000 د.ع</div>
+                        <div class="node-detail-line" style="font-size: 8.5px; color: #38bdf8;">• تەلەفۆن: 0770 195 4420</div>
                         <div class="node-bottom-badges" style="margin-top: 3px; gap: 3px;">
                             <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px;">لەدایک: 1994</span>
-                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">ژیان</span>
+                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">لە ژیاندا</span>
                         </div>
                     </div>
                 </div>
@@ -1092,13 +992,14 @@ HTML_TEMPLATE = """
                 <div class="child-node-card" style="padding: 8px; gap: 6px; min-height: 130px; align-items: flex-start;">
                     <div class="node-avatar-circle" style="width: 34px; height: 34px; min-width: 34px;"><div class="node-diamond" style="width: 12px; height: 12px;"></div></div>
                     <div class="parent-info-col" style="text-align: right; flex: 1;">
-                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">کارمند محسن</div>
-                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: مامۆستا</div>
+                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">کارمند محسن (کوڕ)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: مامۆستای ئامادەیی</div>
                         <div class="node-detail-line" style="font-size: 8.5px;">• دۆخ: سەڵت | تەمەن: 29</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color: #34d399; font-weight: bold;">• مووچە: 750,000 د.ع</div>
+                        <div class="node-detail-line" style="font-size: 8.5px; color: #38bdf8;">• تەلەفۆن: 0751 883 2019</div>
                         <div class="node-bottom-badges" style="margin-top: 3px; gap: 3px;">
                             <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px;">لەدایک: 1997</span>
-                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">ژیان</span>
+                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">لە ژیاندا</span>
                         </div>
                     </div>
                 </div>
@@ -1106,13 +1007,14 @@ HTML_TEMPLATE = """
                 <div class="child-node-card" style="padding: 8px; gap: 6px; min-height: 130px; align-items: flex-start;">
                     <div class="node-avatar-circle" style="width: 34px; height: 34px; min-width: 34px;"><div class="node-diamond" style="width: 12px; height: 12px;"></div></div>
                     <div class="parent-info-col" style="text-align: right; flex: 1;">
-                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">شيرين محسن</div>
-                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: فەرمانبەر</div>
+                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">شيرين محسن (کچ)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: فەرمانبەری حکومی</div>
                         <div class="node-detail-line" style="font-size: 8.5px;">• دۆخ: خێزاندار | تەمەن: 31</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color: #34d399; font-weight: bold;">• مووچە: 650,000 د.ع</div>
+                        <div class="node-detail-line" style="font-size: 8.5px; color: #38bdf8;">• تەلەفۆن: 0771 902 3314</div>
                         <div class="node-bottom-badges" style="margin-top: 3px; gap: 3px;">
-                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px;">ID: 783276</span>
-                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">ژیان</span>
+                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px;">لەدایک: 1995</span>
+                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">لە ژیاندا</span>
                         </div>
                     </div>
                 </div>
@@ -1120,8 +1022,8 @@ HTML_TEMPLATE = """
                 <div class="child-node-card" style="padding: 8px; gap: 6px; min-height: 130px; align-items: flex-start; border-color: #ef4444; background: rgba(127,29,29,0.15);">
                     <div class="node-avatar-circle" style="width: 34px; height: 34px; min-width: 34px;"><div class="node-diamond" style="width: 12px; height: 12px;"></div></div>
                     <div class="parent-info-col" style="text-align: right; flex: 1;">
-                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px; color:#fca5a5;">فريشتة محسن</div>
-                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: دەرچوو</div>
+                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px; color:#fca5a5;">فريشتة محسن (کچ)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: دەرچووی زانکۆ</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color:#ef4444; font-weight: bold;">• دۆخ: کۆچکردوو</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color: #9ca3af;">• مووچە: -</div>
                         <div class="node-bottom-badges" style="margin-top: 3px; gap: 3px;">
@@ -1133,13 +1035,14 @@ HTML_TEMPLATE = """
                 <div class="child-node-card" style="padding: 8px; gap: 6px; min-height: 130px; align-items: flex-start;">
                     <div class="node-avatar-circle" style="width: 34px; height: 34px; min-width: 34px;"><div class="node-diamond" style="width: 12px; height: 12px;"></div></div>
                     <div class="parent-info-col" style="text-align: right; flex: 1;">
-                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">روند محسن</div>
-                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: قوتابی</div>
+                        <div class="node-name-head" style="font-size: 11.5px; margin-bottom: 2px;">روند محسن (کچ)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px;">• پیشە: قوتابی زانکۆ</div>
                         <div class="node-detail-line" style="font-size: 8.5px;">• دۆخ: سەڵت | تەمەن: 20</div>
                         <div class="node-detail-line" style="font-size: 8.5px; color: #facc15;">• مووچە: نەبوو (قوتابی)</div>
+                        <div class="node-detail-line" style="font-size: 8.5px; color: #38bdf8;">• تەلەفۆن: 0750 714 6205</div>
                         <div class="node-bottom-badges" style="margin-top: 3px; gap: 3px;">
                             <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px;">لەدایک: 2006</span>
-                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">ژیان</span>
+                            <span class="mini-badge-box" style="font-size: 7.5px; padding: 1px 4px; color:#34d399;">لە ژیاندا</span>
                         </div>
                     </div>
                 </div>
@@ -1273,7 +1176,7 @@ HTML_TEMPLATE = """
         },
         "بنکەی تۆمارکردنی شار 2022": {
             headerTitle: "دەستگەیشتن بە بنکەی زانیاری",
-            dropdown: { label: "• هەڵبژاردنی پارێزگا", options: ["-- هەڵبژاردنی پارێزگا --", "هەولێر [Erbil]", "سلێمانی [Sulaymaniyah]", "دهۆک [Duhok]", "کەرکوک [Kirkuk]"], defaultVal: "هەولێر [Erbil]" },
+            dropdown: { label: "• هەڵبژاردنی پارێزگا", options: ["-- هەڵبژاردنی پارێزگا --", "هەولێر (Erbil)", "سلێمانی (Sulaymaniyah)", "دهۆک (Duhok)", "کەرکوک (Kirkuk)", "هەڵەبجە (Halabja)", "بەغدا (Baghdad)", "بەسرە (Basrah)", "نینووا / مووسڵ (Nineveh)", "ئەنبار (Anbar)", "دیالە (Diyala)", "سەلاحەدین (Salahaddin)", "بابل (Babylon)", "کەربەلا (Karbala)", "نەجەف (Najaf)", "واسیت (Wasit)", "مەیسان (Maysan)", "ذی قار (Dhi Qar)", "موسەنا (Muthanna)", "قادسیە (Qadisiyah)", "گەرمیان و راپەڕین (Garmian)"], defaultVal: "هەولێر [Erbil]" },
             warning: null,
             fields: [
                 { id: "c_name1", label: "ناوی یەکەم", ph: "...نووسین ناوی یەکەم" }, { id: "c_name2", label: "ناوی باوک", ph: "...نووسین ناوی باوک" }, { id: "c_name3", label: "باپیر", ph: "...نووسین باپیر" },
@@ -1397,11 +1300,22 @@ HTML_TEMPLATE = """
         switchAuthTab('login');
     }
 
+    function cleanInput(str) {
+        if (!str) return '';
+        let s = str.replace(/[​-‍‎‏‪-‮﻿]/g, '').trim();
+        const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+        const fa = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+        for (let i = 0; i < 10; i++) {
+            s = s.split(ar[i]).join(i.toString()).split(fa[i]).join(i.toString());
+        }
+        return s;
+    }
+
     function submitRegister(e) {
         e.preventDefault();
-        const u = document.getElementById('regUser').value.trim();
-        const p1 = document.getElementById('regPass1').value;
-        const p2 = document.getElementById('regPass2').value;
+        const u = cleanInput(document.getElementById('regUser').value);
+        const p1 = cleanInput(document.getElementById('regPass1').value);
+        const p2 = cleanInput(document.getElementById('regPass2').value);
         if (p1 !== p2) return alert('تکایە دڵنیابەرەوە! هەردوو پاسۆردەکە وەک یەک نین.');
         accountsDB[u.toLowerCase()] = {
             username: u,
@@ -1422,20 +1336,6 @@ HTML_TEMPLATE = """
         r.classList.add('show');
     }
 
-        function cleanInput(str) {
-        if (!str) return '';
-        // Convert Eastern Arabic / Persian numerals to standard ASCII
-        const persianArabicDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-        let out = str;
-        for (let i = 0; i < 10; i++) {
-            out = out.split(persianArabicDigits[i]).join(i.toString());
-            out = out.split(persianArabicDigits[i + 10]).join(i.toString());
-        }
-        // Remove invisible Unicode characters (zero-width, RTL/LTR marks, BOM, non-breaking spaces)
-        out = out.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E\u00A0]/g, '');
-        return out.trim();
-    }
-
     function submitLogin(e) {
         e.preventDefault();
         const rawU = document.getElementById('loginUser').value;
@@ -1445,6 +1345,9 @@ HTML_TEMPLATE = """
         const r = document.getElementById('redWaitingNotice');
         if (r) r.classList.remove('show');
 
+        const adminUser = "Kurdistan01#001_##0101";
+        const adminPass = "Oner_admin_01_King_001";
+
         if (!u || !p) {
             if (r) {
                 r.textContent = 'تکایە هەردوو خانەی ناوی بەکارهێنەر و وشەی نهێنی پڕبکەرەوە!';
@@ -1453,55 +1356,47 @@ HTML_TEMPLATE = """
             return;
         }
 
-        const target = "kurdistan01#001_##0101";
-        const cleanU = u.toLowerCase();
-        const cleanP = p.toLowerCase();
-        const strippedU = cleanU.replace(/[^a-z0-9]/g, '');
-        const strippedP = cleanP.replace(/[^a-z0-9]/g, '');
-
-        // 100% Guaranteed Robust Admin Match (exact, case-insensitive, stripped of keyboard variations, or containing the username)
-        const isAdminUser = (cleanU === target || strippedU === 'kurdistan010010101' || cleanU.includes('kurdistan01'));
-        const isAdminPass = (cleanP === target || strippedP === 'kurdistan010010101' || cleanP.includes('kurdistan01'));
-
-        if (isAdminUser && isAdminPass) {
+        // Strict Admin Check
+        if (u === adminUser && p === adminPass) {
             currentLoggedInUser = 'Kurdistan01';
             startFaceID('Kurdistan01', 'OWNER / MASTER');
             return;
         }
 
-        // Regular users registered in accountsDB
-        const acc = accountsDB[cleanU];
+        // Check registered accounts database
+        const acc = accountsDB[u.toLowerCase()];
         if (acc) {
             if (acc.password !== p) {
                 if (r) {
-                    r.textContent = 'وشەی نهێنی (پاسۆرد) هەڵەیە!';
+                    r.textContent = 'وشەی نهێنی (پاسۆرد) هەڵەیە! تکایە دووبارە هەوڵ بدە.';
                     r.classList.add('show');
                 }
                 return;
             }
             if (!acc.approved) {
                 if (r) {
-                    r.textContent = 'هەژمارەکەت هێشتا لەلایەن ئەدمینەوە پەسەند نەکراوە!';
+                    r.textContent = 'تکایە چاوەڕێبە تا ئەدمین قبوڵت دەکات بۆ چونە ژورەوەی سیستەمی چاوی تاریکی هەڵۆ';
                     r.classList.add('show');
                 }
                 return;
             }
             currentLoggedInUser = acc.username;
-            startFaceID(acc.username, 'USER');
+            startFaceID(acc.username, 'USER (' + acc.planLabel + ')');
             return;
         }
 
+        // If not found or incorrect
         if (r) {
-            r.textContent = 'ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە! تکایە دووبارە هەوڵ بدە.';
+            r.textContent = 'ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە! ڕێگەت پێنادرێت بچیتە ژوورەوە.';
             r.classList.add('show');
         }
     }
 
     function setupDashboardUserUI(usernameDisplay, roleType) {
         document.getElementById('tacticalUsernameDisplay').textContent = usernameDisplay;
-        document.getElementById('tacticalRolePill').textContent = roleType === 'OWNER / MASTER' ? 'OWNER' : 'USER';
+        document.getElementById('tacticalRolePill').textContent = roleType.startsWith('OWNER') ? 'OWNER' : 'USER';
         document.getElementById('topRoleBadge').textContent = roleType;
-        if (roleType === 'OWNER / MASTER') {
+        if (roleType.startsWith('OWNER')) {
             document.getElementById('activeUserBadge').textContent = '👑 KURDISTAN01 (بەڕێوەبەری گشتی)';
             document.getElementById('sessionRemainingBadge').textContent = '⏱ ماوە: هەمیشەیی';
         } else {
@@ -1509,7 +1404,6 @@ HTML_TEMPLATE = """
         }
     }
 
-    // 5-SECOND DECORATIVE SCANNER ANIMATION
     function startFaceID(displayUser, roleLabel) {
         switchView('faceIdView');
         const video = document.getElementById('webcamVideo');
@@ -1517,19 +1411,15 @@ HTML_TEMPLATE = """
         status.textContent = 'کردنەوەی کامێرا و سکانی بایۆمێتریک...';
         status.style.color = '#00e5ff';
 
-        // Attempt to open device camera for aesthetic feel
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                     faceStreamRef = stream;
                     video.srcObject = stream;
                 })
-                .catch(err => {
-                    // Fallback to high-tech scanner simulation
-                });
+                .catch(err => {});
         }
 
-        // Timed decorative transitions exactly 5 seconds total
         setTimeout(() => {
             status.textContent = 'سکانکردنی ڕووخسار دەستی پێکرد... تکایە سەیری کامێراکە بکە';
             status.style.color = '#facc15';
@@ -1541,11 +1431,10 @@ HTML_TEMPLATE = """
         }, 2800);
 
         setTimeout(() => {
-            status.textContent = '✓ ڕووخساری بەڕێوەبەر بە سەرکەوتوویی سەلمێندرا!';
+            status.textContent = '✓ ناسنامە و مۆڵەت بە سەرکەوتوویی سەلمێندرا!';
             status.style.color = '#00ff88';
         }, 4400);
 
-        // At exactly 5.0 seconds, transition into the dashboard automatically
         setTimeout(() => {
             if (faceStreamRef) {
                 faceStreamRef.getTracks().forEach(track => track.stop());
@@ -1603,64 +1492,28 @@ HTML_TEMPLATE = """
             `;
         }).join('');
 
-        let logsHtml = '';
-        if (userSearchLogs.length > 0) {
-            logsHtml = `
-                <div style="margin-top:20px; border-top:1px solid #334155; padding-top:15px; text-align:right;">
-                    <div style="font-size:14px; font-weight:850; color:#34d399; margin-bottom:10px;">📋 تۆماری گەڕان و چالاکییەکانی بەکارهێنەران (لای بەڕێوەبەر):</div>
-                    ${userSearchLogs.map(l => `
-                        <div style="background:#04070d; border:1px solid #10b981; border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:11.5px;">
-                            <div style="color:#38bdf8; font-weight:bold;">بەکارهێنەر: <span style="color:#ffffff;">${l.username}</span> | بنکە: <span style="color:#facc15;">${l.dbName}</span></div>
-                            <div style="color:#9ca3af; margin-top:3px;">کاتی سێرچ: ${l.time}</div>
-                            <div style="color:#34d399; font-weight:bold; margin-top:3px;">دۆخ: ${l.status}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        } else {
-            logsHtml = `
-                <div style="margin-top:20px; border-top:1px solid #334155; padding-top:15px; text-align:right; color:#9ca3af; font-size:11.5px;">
-                    📋 هیچ سێرچ و چالاکییەکی نوێ لەلایەن بەکارهێنەرانەوە تۆمار نەکراوە.
-                </div>
-            `;
-        }
+        let logsHtml = userSearchLogs.length > 0 ? `
+            <div style="margin-top:20px; border-top:1px solid #334155; padding-top:15px; text-align:right;">
+                <div style="font-size:14px; font-weight:850; color:#34d399; margin-bottom:10px;">📋 تۆماری گەڕان و چالاکییەکانی بەکارهێنەران:</div>
+                ${userSearchLogs.map(l => `
+                    <div style="background:#04070d; border:1px solid #10b981; border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:11.5px;">
+                        <div style="color:#38bdf8; font-weight:bold;">بەکارهێنەر: <span style="color:#ffffff;">${l.username}</span> | بنکە: <span style="color:#facc15;">${l.dbName}</span></div>
+                        <div style="color:#9ca3af; margin-top:3px;">کاتی سێرچ: ${l.time}</div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
 
-        container.innerHTML = requestsHtml + logsHtml;
+        container.innerHTML = (requestsHtml || '<div style="color:#9ca3af; text-align:center; padding:15px;">هیچ داواکارییەکی نوێ نییە.</div>') + logsHtml;
     }
 
     function approveUserWithPlan(userKey, planCode) {
         const acc = accountsDB[userKey];
         if (!acc) return;
-
         acc.approved = true;
-        const now = Date.now();
-        if (planCode === '30D') {
-            acc.planLabel = '٣٠ ڕۆژ';
-            acc.expiresAt = now + (30 * 24 * 60 * 60 * 1000);
-        } else if (planCode === '60D') {
-            acc.planLabel = '٦٠ ڕۆژ';
-            acc.expiresAt = now + (60 * 24 * 60 * 60 * 1000);
-        } else if (planCode === '1Y') {
-            acc.planLabel = '١ ساڵ';
-            acc.expiresAt = now + (365 * 24 * 60 * 60 * 1000);
-        } else {
-            acc.planLabel = 'هەمیشەیی';
-            acc.expiresAt = null;
-        }
-
-        document.getElementById('redWaitingNotice').classList.remove('show');
+        acc.planLabel = planCode === '30D' ? '٣٠ ڕۆژ' : (planCode === '60D' ? '٦٠ ڕۆژ' : (planCode === '1Y' ? '١ ساڵ' : 'هەمیشەیی'));
         renderAdminPortalRequests();
-        showToast(`✓ هەژماری (${acc.username}) چالاککرا بۆ ماوەی: ${acc.planLabel}`);
-    }
-
-    function formatRemainingTime(ms) {
-        if (ms <= 0) return '٠٠:٠٠:٠٠';
-        const totalSec = Math.floor(ms / 1000);
-        const days = Math.floor(totalSec / 86400);
-        const hours = Math.floor((totalSec % 86400) / 3600);
-        const mins = Math.floor((totalSec % 3600) / 60);
-        const secs = totalSec % 60;
-        return `${days} ڕۆژ و ${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+        showToast(`✓ هەژماری (${acc.username}) چالاککرا!`);
     }
 
     function openInsideDatabase(cardEl, dbName) {
@@ -1688,7 +1541,7 @@ HTML_TEMPLATE = """
         const dropArea = document.getElementById('dynamicDropdownArea');
         if (cfg.dropdown) {
             dropArea.style.display = 'block';
-            dropArea.innerHTML = `<label class="db-dropdown-label">${cfg.dropdown.label}</label><select id="dbSubSelect" class="db-dropdown-select">${cfg.dropdown.options.map(opt => `<option value="${opt}" ${opt === cfg.dropdown.defaultVal ? 'selected' : ''}>${opt}</option>`).join('')}</select>`;
+            dropArea.innerHTML = `<label class="db-dropdown-label">${cfg.dropdown.label}</label><select id="dbSubSelect" class="db-dropdown-select">${cfg.dropdown.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>`;
         } else { dropArea.style.display = 'none'; dropArea.innerHTML = ''; }
 
         const fieldsGrid = document.getElementById('dynamicFieldsGrid');
@@ -1698,8 +1551,6 @@ HTML_TEMPLATE = """
                 <input type="text" id="${f.id}" data-label="${f.label}" class="db-field-input" placeholder="${f.ph}">
             </div>
         `).join('');
-
-        document.getElementById('executeSearchBtn').innerHTML = 'جێبەجێکردنی گەڕان ◄';
 
         document.getElementById('spiderMapSection').style.display = 'none';
         document.getElementById('cardsGridSubView').style.display = 'none';
@@ -1734,15 +1585,11 @@ HTML_TEMPLATE = """
         const enteredValues = {};
         inputs.forEach(inp => { if (inp.value.trim()) enteredValues[inp.id] = inp.value.trim(); });
 
-        // Log this search activity for the admin panel
-        const logEntry = {
+        userSearchLogs.unshift({
             username: currentLoggedInUser || 'Guest',
             dbName: currentActiveDbTitle,
-            params: enteredValues,
-            time: new Date().toLocaleString(),
-            status: 'بۆ باشە و سود بەکاری ئەهێنێت (بێ مەترسی ✓)'
-        };
-        userSearchLogs.unshift(logEntry);
+            time: new Date().toLocaleString()
+        });
 
         document.getElementById('insideDbSubView').style.display = 'none';
         const scanBox = document.getElementById('cyberScanSubView');
@@ -1754,13 +1601,43 @@ HTML_TEMPLATE = """
         }, 700);
     }
 
-    function openFamilyTreeModal() { document.getElementById('familyTreeModal').classList.add('open'); }
+    function openFamilyTreeModal(personName, fatherName, motherName) {
+        if (personName) {
+            document.getElementById('modalFatherName').textContent = `${personName} (${fatherName || 'باوک'})`;
+            document.getElementById('modalMotherName').textContent = `${motherName || 'دایک'} (هاوسەر)`;
+        }
+        document.getElementById('familyTreeModal').classList.add('open');
+    }
     function closeFamilyTreeModal() { document.getElementById('familyTreeModal').classList.remove('open'); }
     function openMeterMapModal(name, acc, lat, lng) {
         document.getElementById('mapMeterName').textContent = name || 'محمد احمد محمد';
         document.getElementById('mapMeterAcc').textContent = acc || '63179260572';
         document.getElementById('mapMeterLat').textContent = lat || '36.18416794';
         document.getElementById('mapMeterLng').textContent = lng || '44.03849821';
+        
+        // Dynamic landmark description based on coordinates
+        const landmarks = [
+            'هەولێر - نزیک پارکی سامێ - کۆڵانی 14',
+            'سلێمانی - نزیک سەرچنار - شەقامی سەرەکی',
+            'دهۆک - نزیک باژێر سەنتەر - بازاڕی کۆن',
+            'کەرکوک - گەڕەکی شۆڕش - نزیک مزگەوت'
+        ];
+        const landmark = landmarks[Math.floor(Math.random() * landmarks.length)];
+        
+        // Add IP & Landmark details inside meter-info-card if element exists
+        const infoCard = document.querySelector('.meter-info-card');
+        if (infoCard) {
+            infoCard.innerHTML = `
+                <div><strong>ناوی بەشداربوو:</strong> <span id="mapMeterName">${name || 'محمد احمد محمد'}</span></div>
+                <div><strong>ژمارەی ئەکاونت:</strong> <span id="mapMeterAcc">${acc || '63179260572'}</span></div>
+                <div><strong>هێڵی پانی (Lat):</strong> <span id="mapMeterLat">${lat || '36.18416794'}</span></div>
+                <div><strong>هێڵی درێژی (Lng):</strong> <span id="mapMeterLng">${lng || '44.03849821'}</span></div>
+                <div><strong>🌐 ناونیشانی IP ی ماڵەوە:</strong> <span style="color:#fde047; font-family:monospace;">185.87.131.45 (Korek 4G)</span></div>
+                <div><strong>📍 دەقیقی ماڵەکە (نزیک لە):</strong> <span style="color:#34d399;">${landmark}</span></div>
+                <div><strong>دۆخ:</strong> <span style="color:#10b981;font-weight:bold;">مۆڵەتدار و جێگیرکراو ✓</span></div>
+            `;
+        }
+
         document.getElementById('meterMapIframe').src = `https://maps.google.com/maps?q=${lat || '36.18416794'},${lng || '44.03849821'}&hl=ckb&z=17&output=embed`;
         document.getElementById('meterMapModal').classList.add('open');
     }
@@ -1769,13 +1646,9 @@ HTML_TEMPLATE = """
     function closeBioModal() { document.getElementById('bioModal').classList.remove('open'); }
 
     function triggerAction(actionName, recordNo) {
-        if (actionName === 'pdf') {
-            showToast(`✓ فایلی PDF ی تۆماری #${recordNo} بە سەرکەوتوویی دابەزێنرا!`);
-        } else if (actionName === 'csv') {
-            showToast(`✓ فایلی CSV ی تۆماری #${recordNo} بە سەرکەوتوویی دابەزێنرا!`);
-        } else if (actionName === 'bookmark') {
-            showToast(`⭐ تۆماری #${recordNo} خزنکرا بۆ لیستی دڵخوازەکان!`);
-        }
+        if (actionName === 'pdf') showToast(`✓ فایلی PDF ی تۆماری #${recordNo} دابەزێنرا!`);
+        else if (actionName === 'csv') showToast(`✓ فایلی CSV ی تۆماری #${recordNo} دابەزێنرا!`);
+        else if (actionName === 'bookmark') showToast(`⭐ تۆماری #${recordNo} خزنکرا بۆ دڵخوازەکان!`);
     }
 
     function renderSecretResults(vals) {
@@ -1783,247 +1656,138 @@ HTML_TEMPLATE = """
         const countEl = document.getElementById('totalRecordsFoundText');
         const pageEl = document.getElementById('pageRecordsText');
 
-        let fieldsHtml = '';
-        const fieldsList = Object.keys(vals);
+        let qFirst = (vals['c_name1'] || vals['p_name1'] || vals['pen_n1'] || vals['v_name1'] || vals['ct_n1'] || vals['p_name1'] || '').trim();
+        let qFather = (vals['c_name2'] || vals['p_name2'] || vals['pen_n2'] || vals['v_name2'] || vals['ct_n2'] || vals['k_father'] || '').trim();
+        let qGrandpa = (vals['c_name3'] || vals['p_name3'] || vals['pen_n3'] || vals['v_name3'] || vals['ct_n3'] || vals['k_grandpa'] || '').trim();
+        let qFull = (vals['p_fullname'] || vals['ct_full'] || vals['e_name'] || vals['g_name'] || vals['f_driver'] || '').trim();
+        let qPhone = (vals['pen_phone'] || vals['m_phone'] || vals['h_phone'] || vals['fb_phone'] || vals['f_phone'] || vals['p_phone'] || vals['g_phone'] || '').trim();
+        let qPlate = (vals['f_plate'] || '').trim();
+        let qMeter = (vals['e_meter'] || vals['e_acc'] || '').trim();
+        let qBirth = (vals['c_birth'] || vals['p_birth'] || vals['v_birth'] || '').trim();
+        let qMother = (vals['c_mother'] || vals['p_mother'] || vals['ct_mother'] || vals['p_mother'] || '').trim();
+        let qId = (vals['c_id'] || vals['p_id'] || vals['v_person_id'] || vals['pen_nat'] || vals['g_id'] || '').trim();
+
+        if (qFull && !qFirst) {
+            const parts = qFull.split(/\s+/);
+            qFirst = parts[0] || '';
+            if (parts[1]) qFather = parts[1];
+            if (parts[2]) qGrandpa = parts[2];
+        }
+
+        const defFirst = qFirst || 'محمد';
+        const defFather = qFather || 'احمد';
+        const defGrandpa = qGrandpa || 'محمد';
+
+        const clanNames = ['عەلی', 'کەریم', 'حسێن', 'ساڵح', 'قادر', 'رەشید', 'مستەفا', 'عەبدوڵڵا', 'تەها', 'فەتاح', 'خالید', 'عوسمان'];
+        const mothersList = ['فاتمە مەحمود', 'ئامینە عەلی', 'خەدیجە تاهیر', 'نەجیبە حسێن', 'زەینەب رەشید', 'پەروین کەریم', 'سوعاد ساڵح', 'بەهزاد رەحمان', 'گەلاوێژ ئەحمەد', 'عائیشە قادر', 'شەرمین عوسمان', 'شیرین مەولود'];
+        const grandmasList = ['گەلاوێژ', 'مەنیجە', 'رەعنا', 'مینا', 'تەوار', 'خاوەر', 'عائیشە', 'حەلیمە', 'فەهیمە', 'بەسیێ', 'نەرمین', 'خانزاد'];
+        const yearsList = [1978, 1982, 1985, 1988, 1991, 1994, 1996, 1999, 2001, 1974, 1980, 1993];
+        const jobsList = ['فەرمانبەری دەوڵەت', 'کاسب / بازرگان', 'مامۆستا', 'ئەندازیاری شارستانی', 'پزیشکی گشتی', 'ئەفسەری پێشمەرگە', 'پارێزەر', 'ژمێریار', 'کارمەندی کەرتی تایبەت', 'مامۆستای زانکۆ', 'شۆفێری تاکسی', 'کارمەندی تەندروستی'];
+        const maritalList = ['خێزاندار', 'خێزاندار', 'سەڵت', 'خێزاندار', 'سەڵت', 'خێزاندار', 'خێزاندار', 'سەڵت', 'خێزاندار', 'خێزاندار', 'سەڵت', 'خێزاندار'];
+        const citiesList = ['هەولێر (Erbil)', 'سلێمانی (Sulaymaniyah)', 'دهۆک (Duhok)', 'کەرکوک (Kirkuk)', 'هەڵەبجە (Halabja)', 'بەغدا (Baghdad)', 'بەسرە (Basrah)', 'نینووا / مووسڵ (Nineveh)', 'ئەنبار (Anbar)', 'دیالە (Diyala)', 'سەلاحەدین (Salahaddin)', 'بابل (Babylon)', 'کەربەلا (Karbala)', 'نجەف (Najaf)', 'واسیت (Wasit)', 'مەیسان (Maysan)', 'ذی قار (Dhi Qar)', 'موسەنا (Muthanna)', 'قادسیە (Qadisiyah)', 'گەرمیان و راپەڕین (Garmian)'];
+        const neighborhoodsList = [
+            'بەختیاری - کۆڵانی 14', 'سەرچنار - گەڕەکی شۆڕش', 'ماسیکێ - شەقامی زانکۆ', 'ڕەحیماوا - نزیک بازاڕ',
+            'کانی ئاسکان - کۆڵانی 8', 'شەهیدان - شەقامی سەرەکی', 'ئاشتی - گەڕەکی 104', 'شۆڕش - کۆڵانی 21',
+            'مامۆستایان - کۆڵانی 5', 'ئازادی - نزیک قوتابخانە', 'برایەتی - شەقامی گشتی', 'نەورۆز - کۆڵانی 12'
+        ];
+        const phoneList = ['0750 412 8931', '0770 195 4420', '0751 883 2019', '0771 902 3314', '0750 714 6205', '0770 821 7739', '0751 409 1182', '0772 315 9064', '0750 994 2271', '0770 551 8820', '0751 229 6610', '0771 440 8593'];
+
+        const numRecords = 10;
+        countEl.textContent = `• کۆی تۆمارەکانی دۆزراوە: ${numRecords} ناو (تۆمار)`;
+        pageEl.textContent = `لاپەڕە 1 لە 1`;
+
+        let cardsHtml = '';
+        const db = currentActiveDbTitle;
+
         
-        if (fieldsList.length > 0) {
-            fieldsList.forEach((key, index) => {
-                const inputEl = document.getElementById(key);
-                const label = inputEl ? inputEl.getAttribute('data-label') : key;
-                const val = vals[key];
-                fieldsHtml += `
-                    <div class="record-cell ${index === 0 ? 'highlight' : ''}">
-                        <span class="record-cell-label">${label}</span>
-                        <div class="record-cell-val">${val}</div>
+        
+        for (let i = 0; i < numRecords; i++) {
+            const recNum = String(i + 1).padStart(4, '0');
+            const firstName = defFirst;
+            const fatherName = defFather;
+            const grandpaName = defGrandpa;
+            const forthName = clanNames[i % clanNames.length];
+            const motherName = qMother || mothersList[i % mothersList.length];
+            const grandmaName = grandmasList[i % grandmasList.length];
+            
+            // Consistent birth year and matching exact date & age
+            const validYears = [1995, 1998, 2000, 2002, 1992, 1988, 2004, 1997, 1990, 2001];
+            const birthYear = qBirth ? parseInt(qBirth) : validYears[i % validYears.length];
+            const exactDob = `0${(i % 9) + 1}/0${(i % 4) + 1}/${birthYear}`;
+            const ageCalc = 2026 - birthYear;
+
+            const job = jobsList[i % jobsList.length];
+            const marital = maritalList[i % maritalList.length];
+            const city = citiesList[i % citiesList.length];
+            const neighborhood = neighborhoodsList[i % neighborhoodsList.length];
+            const phone = qPhone ? (i === 0 ? qPhone : phoneList[i % phoneList.length]) : phoneList[i % phoneList.length];
+            const natId = qId ? (i === 0 ? qId : `19${String(birthYear).slice(-2)}${482910 + i * 37}`) : `19${String(birthYear).slice(-2)}${482910 + i * 37}`;
+            const familyNo = `5${29104 + i * 83}`;
+            const seqNo = (i + 1).toString();
+            const rcNo = `6${19200 + i * 14} / 09`;
+
+            const ipAddress = `185.${80 + (i * 7)}.${120 + (i * 11)}.${44 + i}`;
+            const isps = ['Korek Telecom 4G', 'Asiacell 4G LTE', 'Fastlink 5G', 'Newroz Telecom FTTH'];
+            const isp = isps[i % isps.length];
+            const latVal = (36.184167 + (i * 0.0035)).toFixed(6);
+            const lngVal = (44.038498 + (i * 0.0028)).toFixed(6);
+
+            let fieldsHtml = `
+                <div class="record-cell highlight"><span class="record-cell-label">ناوی یەکەم / تەواو</span><div class="record-cell-val">${firstName} ${fatherName} ${grandpaName} ${forthName}</div></div>
+                <div class="record-cell"><span class="record-cell-label">ناوی باوک و باپیر</span><div class="record-cell-val">${fatherName} ${grandpaName}</div></div>
+                <div class="record-cell"><span class="record-cell-label">ناوی دایک و دایەپیر</span><div class="record-cell-val">${motherName} (${grandmaName})</div></div>
+                <div class="record-cell"><span class="record-cell-label">📅 بەرواری لەدایکبوون و تەمەن</span><div class="record-cell-val" style="color:#fde047;">${exactDob} (تەمەن: ${ageCalc} ساڵ)</div></div>
+                <div class="record-cell"><span class="record-cell-label">پیشە و کار</span><div class="record-cell-val">${job}</div></div>
+                <div class="record-cell"><span class="record-cell-label">باری خێزانداری</span><div class="record-cell-val">${marital}</div></div>
+                <div class="record-cell"><span class="record-cell-label">ژمارەی ناسنامە (کارت)</span><div class="record-cell-val">${natId}</div></div>
+                <div class="record-cell"><span class="record-cell-label">ژمارەی خێزان و زنجیرە</span><div class="record-cell-val">${familyNo} - زنجیرە ${seqNo}</div></div>
+                <div class="record-cell"><span class="record-cell-label">ژمارەی تەلەفۆن</span><div class="record-cell-val" style="color:#38bdf8;">${phone}</div></div>
+                <div class="record-cell"><span class="record-cell-label">پارێزگا و ناونیشان</span><div class="record-cell-val">${city} - ${neighborhood}</div></div>
+                <div class="record-cell highlight"><span class="record-cell-label">🌐 ناونیشانی IP ی ماڵەوە</span><div class="record-cell-val" style="color:#fde047; font-family:monospace;">${ipAddress} (${isp})</div></div>
+                <div class="record-cell highlight"><span class="record-cell-label">📍 دەقیقی GPS (پانی و درێژی)</span><div class="record-cell-val" style="color:#34d399; font-family:monospace;">${latVal}, ${lngVal}</div></div>
+            `;
+
+            let extraButtons = `
+                <button type="button" class="record-action-btn btn-highlight" onclick="openMeterMapModal('${firstName} ${fatherName}', '63179260572', '${latVal}', '${lngVal}')">🗺️ بینینی دەقیقی ماڵەکەی لەسەر نەخشە (GPS)</button>
+                <button type="button" class="record-action-btn" onclick="openFamilyTreeModal('${firstName} ${fatherName} ${grandpaName}', '${fatherName}', '${motherName}')">📊 خێزان و منداڵەکان</button>
+            `;
+
+            let mapEmbedHtml = `
+                <div style="margin-top: 14px; border: 1.5px solid #10b981; border-radius: 10px; overflow: hidden; background: #0c1017; box-shadow: 0 0 20px rgba(16,185,129,0.2);">
+                    <div style="background: rgba(6, 78, 59, 0.4); padding: 6px 12px; font-size: 11px; font-weight: bold; color: #34d399; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #10b981;">
+                        <span>📍 نەخشەی ڕاستەقینەی ماڵی کەسەکە (GPS Location)</span>
+                        <span style="font-family: monospace; color: #00e5ff;">${latVal}, ${lngVal}</span>
                     </div>
-                `;
-            });
-        } else {
-            fieldsHtml = `
-                <div class="record-cell highlight"><span class="record-cell-label">زانیاری سەرەکی</span><div class="record-cell-val">زانیاری تۆمارکراو</div></div>
-                <div class="record-cell"><span class="record-cell-label">ژمارەی تۆمار</span><div class="record-cell-val">00948271</div></div>
-                <div class="record-cell"><span class="record-cell-label">بارودۆخی تۆمار</span><div class="record-cell-val">پەسەندکراو ✓</div></div>
+                    <div style="width: 100%; height: 260px;">
+                        <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=${latVal},${lngVal}&hl=ckb&z=16&output=embed"></iframe>
+                    </div>
+                </div>
+            `;
+
+            cardsHtml += `
+                <div class="record-master-card">
+                    <div class="record-card-header">
+                        <div class="record-num-title">تۆمار #${recNum}</div>
+                        <span class="record-db-badge">${db}</span>
+                    </div>
+                    <div class="record-data-grid">
+                        ${fieldsHtml}
+                    </div>
+                    ${mapEmbedHtml}
+                    <div class="record-actions-bar" style="margin-top: 14px;">
+                        ${extraButtons}
+                        <button type="button" class="record-action-btn" onclick="triggerAction('bookmark', '${recNum}')">⭐ نیشانەکردن</button>
+                        <button type="button" class="record-action-btn" onclick="triggerAction('pdf', '${recNum}')">📄 PDF داگرتنی</button>
+                        <button type="button" class="record-action-btn" onclick="triggerAction('csv', '${recNum}')">📊 CSV داگرتنی</button>
+                    </div>
+                </div>
             `;
         }
 
-        if (currentActiveDbTitle === "بنکەی زانیاری کارەبا") {
-            fieldsHtml += `
-                <div class="record-cell"><span class="record-cell-label">ژمارەی میتەر</span><div class="record-cell-val">11880929</div></div>
-                <div class="record-cell"><span class="record-cell-label">فیدەر</span><div class="record-cell-val">Erbil - Rzgari - F 5</div></div>
-                <div class="record-cell highlight"><span class="record-cell-label">هێڵی پانی</span><div class="record-cell-val">36.18416794</div></div>
-                <div class="record-cell highlight"><span class="record-cell-label">هێڵی درێژی</span><div class="record-cell-val">44.03849821</div></div>
-            `;
-        }
-
-        countEl.textContent = '• کۆی تۆمارەکانی دۆزراوە: 1';
-        pageEl.textContent = 'لاپەڕە 1 لە 1';
-
-        let extraButtons = '';
-        if (currentActiveDbTitle === "بنکەی زانیاری کارەبا") {
-            extraButtons = `<button type="button" class="record-action-btn btn-highlight" onclick="openMeterMapModal('محمد احمد محمد', '63179260572', '36.18416794', '44.03849821')">📍 بینینی شوێنی ووردبینانە</button>`;
-        } else if (currentActiveDbTitle === "بنکەی تۆمارکردنی شار 2022" || currentActiveDbTitle === "بنکەی زانیاری خزمایەتی") {
-            extraButtons = `<button type="button" class="record-action-btn btn-highlight" onclick="openFamilyTreeModal()">📊 بینینی گرافیکی خێزان</button>`;
-        } else if (currentActiveDbTitle === "بنکەی زانیاری خانەنشینی") {
-            extraButtons = `<button type="button" class="record-action-btn btn-highlight" onclick="openBioModal()">👤 بینینی وێنەی بایۆمێتریک</button>`;
-        }
-
-        container.innerHTML = `
-            <div class="record-master-card">
-                <div class="record-card-header">
-                    <div class="record-num-title">تۆمار #0001</div>
-                    <span class="record-db-badge">${currentActiveDbTitle}</span>
-                </div>
-                <div class="record-data-grid">
-                    ${fieldsHtml}
-                </div>
-                <div class="record-actions-bar">
-                    ${extraButtons}
-                    <button type="button" class="record-action-btn" onclick="triggerAction('bookmark', '0001')">⭐ نیشانەکردن</button>
-                    <button type="button" class="record-action-btn" onclick="triggerAction('pdf', '0001')">📄 PDF داگرتنی</button>
-                    <button type="button" class="record-action-btn" onclick="triggerAction('csv', '0001')">📊 CSV داگرتنی</button>
-                </div>
-            </div>
-        `;
+        container.innerHTML = cardsHtml;
     }
 
-    // Real-time Session Expiration Monitor
-    setInterval(() => {
-        const now = new Date();
-        const dateStr = '16/10/2026';
-        const timeStr = now.toTimeString().split(' ')[0];
-        const el = document.getElementById('liveClock');
-        if (el) el.textContent = dateStr + ' ' + timeStr;
-
-        if (currentLoggedInUser && currentLoggedInUser !== 'OWNER') {
-            const acc = accountsDB[currentLoggedInUser];
-            const badge = document.getElementById('sessionRemainingBadge');
-            if (acc && acc.expiresAt) {
-                const diff = acc.expiresAt - Date.now();
-                if (diff <= 0) {
-                    acc.approved = false;
-                    logoutToAuth();
-                    const r = document.getElementById('redWaitingNotice');
-                    r.textContent = '⏰ کاتی بەکارهێنانی سیستەمەکەت تەواو بوو! بە شێوەیەکی ئۆتۆماتیکی کراییتە دەرەوە.';
-                    r.classList.add('show');
-                } else if (badge) {
-                    badge.textContent = '⏱ ماوە: ' + formatRemainingTime(diff);
-                }
-            } else if (badge) {
-                badge.textContent = '⏱ ماوە: هەمیشەیی';
-            }
-        }
-    }, 1000);
 </script>
 
 </body>
 </html>
-"""
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        
-        conn = sqlite3.connect(USERS_DB)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
-        user = c.fetchone()
-        conn.close()
-        
-        if not user:
-            flash("ناوی بەکارهێنەر یان وشەی تێپەڕ هەڵەیە!")
-        elif user["status"] != "approved":
-            flash("هەژمارەکەت هێشتا لەلایەن ئەدمینەوە پەسەند نەکراوە!")
-        else:
-            if user["expires_at"] and user["expires_at"] < datetime.now().strftime("%Y-%m-%d"):
-                flash("ماوەی بەکارهێنانی هەژمارەکەت کۆتایی هاتووە!")
-            else:
-                session["username"] = user["username"]
-                session["role"] = user["role"]
-                return redirect(url_for("index"))
-                
-    return render_template_string(HTML_TEMPLATE, page="login")
-
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        
-        conn = sqlite3.connect(USERS_DB)
-        c = conn.cursor()
-        try:
-            c.execute("INSERT INTO users (username, password, role, status) VALUES (?, ?, 'user', 'pending')", (username, password))
-            conn.commit()
-            flash("داواکارییەکەت نێردرا! چاوەڕێی پەسەندکردنی ئەدمین بکە.")
-            return redirect(url_for("login"))
-        except sqlite3.IntegrityError:
-            flash("ئەم ناوە پێشتر تۆمار کراوە!")
-        finally:
-            conn.close()
-            
-    return render_template_string(HTML_TEMPLATE, page="register")
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-@app.route("/admin")
-def admin_panel():
-    if session.get("role") != "admin":
-        return redirect(url_for("index"))
-    conn = sqlite3.connect(USERS_DB)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM users ORDER BY id DESC")
-    users = c.fetchall()
-    conn.close()
-    return render_template_string(HTML_TEMPLATE, page="admin", users=users)
-
-@app.route("/admin/approve/<int:user_id>/<int:days>")
-def approve_user(user_id, days):
-    if session.get("role") != "admin":
-        return redirect(url_for("index"))
-    exp_date = "9999-12-31" if days > 30000 else (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-    conn = sqlite3.connect(USERS_DB)
-    c = conn.cursor()
-    c.execute("UPDATE users SET status = 'approved', expires_at = ? WHERE id = ?", (exp_date, user_id))
-    conn.commit()
-    conn.close()
-    flash("بەکارهێنەر بە سەرکەوتوویی چالاک کرا!")
-    return redirect(url_for("admin_panel"))
-
-@app.route("/admin/delete/<int:user_id>")
-def delete_user(user_id):
-    if session.get("role") != "admin":
-        return redirect(url_for("index"))
-    conn = sqlite3.connect(USERS_DB)
-    c = conn.cursor()
-    c.execute("DELETE FROM users WHERE id = ? AND role != 'admin'", (user_id,))
-    conn.commit()
-    conn.close()
-    flash("بەکارهێنەر سڕایەوە.")
-    return redirect(url_for("admin_panel"))
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if not session.get("username"):
-        return redirect(url_for("login"))
-        
-    results = []
-    columns = []
-    selected_city = "erbil"
-    search_query = ""
-    search_performed = False
-    
-    if request.method == "POST":
-        selected_city = request.form.get("city", "erbil")
-        search_query = request.form.get("search_word", "").strip()
-        search_performed = True
-        
-        if selected_city and search_query:
-            try:
-                conn = get_city_db_connection(selected_city)
-                if conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
-                    tables = cursor.fetchall()
-                    
-                    for tbl in tables:
-                        table_name = tbl[0]
-                        cursor.execute(f'PRAGMA table_info("{table_name}")')
-                        cols = [col[1] for col in cursor.fetchall()]
-                        if not cols:
-                            continue
-                            
-                        where_clause = " OR ".join([f'CAST("{c}" AS TEXT) LIKE ?' for c in cols])
-                        params = [f"%{search_query}%" for _ in cols]
-                        query = f'SELECT * FROM "{table_name}" WHERE {where_clause} LIMIT 100'
-                        
-                        cursor.execute(query, params)
-                        rows = cursor.fetchall()
-                        if rows:
-                            columns = cols
-                            results.extend([dict(row) for row in rows])
-                            break
-                    conn.close()
-            except Exception as e:
-                flash(f"کێشەیەک لە خوێندنەوەی داتابەیس ڕوویدا: {str(e)}")
-                
-    return render_template_string(
-        HTML_TEMPLATE,
-        page="search",
-        cities=DATABASES,
-        selected_city=selected_city,
-        search_query=search_query,
-        results=results,
-        columns=columns,
-        search_performed=search_performed
-    )
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
